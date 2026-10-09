@@ -7,6 +7,30 @@ class Matrix {
         this.cols = data[0].length;
     }
 
+    static zeros(rows, cols) {
+        const result = [];
+        for (let i = 0; i < rows; i++) {
+            const row = [];
+            for (let j = 0; j < cols; j++) {
+                row.push(new Complex(0, 0));
+            }
+            result.push(row);
+        }
+        return new Matrix(result);
+    }
+
+    static identity(n) {
+        const result = [];
+        for (let i = 0; i < n; i++) {
+            const row = [];
+            for (let j = 0; j < n; j++) {
+                row.push(i === j ? new Complex(1, 0) : new Complex(0, 0));
+            }
+            result.push(row);
+        }
+        return new Matrix(result);
+    }
+
     static add(a, b) {
         if (a.rows !== b.rows || a.cols !== b.cols) {
             throw new Error("Matrices must have the same dimensions for addition");
