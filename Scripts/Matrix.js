@@ -1,3 +1,5 @@
+const Complex = require("./Complex");
+
 class Matrix {
     constructor(data) {
         this.data = data;
@@ -13,7 +15,7 @@ class Matrix {
         for (let i = 0; i < a.rows; i++) {
             const row = [];
             for (let j = 0; j < a.cols; j++) {
-                row.push(a.data[i][j] + b.data[i][j]);
+                row.push(a.data[i][j].add(b.data[i][j]));
             }
             result.push(row);
         }
@@ -28,7 +30,7 @@ class Matrix {
         for (let i = 0; i < a.rows; i++) {
             const row = [];
             for (let j = 0; j < a.cols; j++) {
-                row.push(a.data[i][j] - b.data[i][j]);
+                row.push(a.data[i][j].sub(b.data[i][j]));
             }
             result.push(row);
         }
@@ -40,26 +42,30 @@ class Matrix {
         for (let i = 0; i < matrix.rows; i++) {
             const row = [];
             for (let j = 0; j < matrix.cols; j++) {
-                row.push(matrix.data[i][j] * scalar);
+                row.push(matrix.data[i][j].multiply(scalar));
             }
             result.push(row);
         }
         return new Matrix(result);
     }
 
-    static vector(matrix, vector) {
-        if (matrix.cols !== vector.length) {
-            throw new Error("Matrix columns must match vector length");
+    static multiply(a, b) {
+        if (a.cols !== b.rows) {
+            throw new Error("Matrix A columns must equal Matrix B rows");
         }
         const result = [];
-        for (let i = 0; i < matrix.rows; i++) {
-            let sum = 0;
-            for (let j = 0; j < matrix.cols; j++) {
-                sum += matrix.data[i][j] * vector[j];
+        for (let i = 0; i < a.rows; i++) {
+            const row = [];
+            for (let j = 0; j < b.cols; j++) {
+                let sum = new Complex(0, 0);
+                for (let k = 0; k < a.cols; k++) {
+                    sum = sum.add(a.data[i][k].multiply(b.data[k][j]));
+                }
+                row.push(sum);
             }
-            result.push(sum);
+            result.push(row);
         }
-        return result;
+        return new Matrix(result);
     }
 
     add(other) {
@@ -74,8 +80,8 @@ class Matrix {
         return Matrix.scalar(this, scalar);
     }
 
-    vector(vector) {
-        return Matrix.vector(this, vector);
+    multiply(other) {
+        return Matrix.multiply(this, other);
     }
 }
 
