@@ -1,9 +1,0 @@
-{
-  "name": "simqc",
-  "version": "0.1.0",
-  "scripts": {
-    "test": "echo 'No tests yet'",
-    "lint": "echo 'No lint config'",
-    "check:deps": "echo 'No external dependencies'"
-  }
-}
