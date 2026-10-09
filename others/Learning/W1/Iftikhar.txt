@@ -1,0 +1,4 @@
+Today I have worked on Matrix.js
+This .js file has function for complex matrix such as add, sub, multiplication
+I have also added Identity complex matrix and Zero matrix.
+Impelemented the data from Complex.js and took that data so that the functions could be use for complex matrix arithmetics. 
