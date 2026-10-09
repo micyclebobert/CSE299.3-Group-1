@@ -41,27 +41,14 @@ We represent it using the concept of linear combination in linear algebra. First
 
 ---
 
-## [Date]
+## 2026-10-08
 
 ### Learning / Insights
-- 
-- 
+  Learned about the Holevo theorem. I learned that we can represent the single qubit in a bloch sphere where an arrow represents the phase of the qubit along 3 axis. The imaginary axis on the y axis, representing the states |i> |-i>. The real axis on the x axis representing the states |+> and the |-> states. The z axis represents the states |0> and |1>. Now we represent the position on this sphere and thus define the qubit's state using the equation |psi> = cos(theta/2) + e raised to the power of i into phi product with sine of theta/2. Now this gives us the opportunity to encode an infinite number classical information since theta and phi are both continuous and real numbers. Holevo's theorem provides an upper limit to the amount of information that can be extracted from the encoding of information in an n qubit system. No matter how much information we encode in a single qubit, we will only end up being able to extract 1 bit of information from one qubit when measured. Thus this puts a limit. 
 
-### Work Completed
-- 
-- 
+  I followed my curiosity and tried delving into understanding why a qubit exists in a superposition. So one thing we learned from the double slit experiment is that particles like electrons and protons exist as waves. We see that when during the double slit experiment we notice that instead of having two strips in the output screen we see an interference pattern on the screen which means the particle passes through both the slits as waves and interfere forming patters as observed. This explains the wave nature of particles. The wave associated with a particle is called the De Broglie wave. 
 
-### Project Updates
-- 
-- 
-
-### Challenges / Blockers
-- 
-- 
-
-### Next Steps
-- 
-- 
+  Lets define the two states of an electron as the basis states of a qubit of excitation and ground state. When the electron is bound by the nucleus, it exists as a standing wave. The ground state standing wave has a low frequency and the excited state standing wave has a higher frequency. Now superposition does not mean there is a magical middle ground. What superposition is is that both the waves of the higher frequency and the lower frequency combined together to form a more complex wave. One can imagine it like pressing two keys of a piano at the same time and producing a complex sound whose constituents are both the basis states. 
 
 ---
 
