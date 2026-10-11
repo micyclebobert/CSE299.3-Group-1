@@ -24,23 +24,24 @@ Built from first principles in JavaScript. No quantum hardware. No Qiskit, Cirq 
 4. [Features](#-features)
 5. [How it works](#-how-it-works)
 6. [Architecture](#-architecture)
-7. [Gate library](#-gate-library)
-8. [Algorithms](#-algorithms)
-9. [Getting started](#-getting-started)
-10. [Repository structure](#-repository-structure)
-11. [Validation and testing](#-validation-and-testing)
-12. [Roadmap](#-roadmap)
-13. [Scope and limitations](#-scope-and-limitations)
-14. [Related work](#-related-work)
-15. [Team](#-team)
-16. [References](#-references)
-17. [License](#-license)
+7. [Core conventions](#-core-conventions)
+8. [Gate library](#-gate-library)
+9. [Algorithms](#-algorithms)
+10. [Getting started](#-getting-started)
+11. [Repository structure](#-repository-structure)
+12. [Validation and testing](#-validation-and-testing)
+13. [Roadmap](#-roadmap)
+14. [Scope and limitations](#-scope-and-limitations)
+15. [Related work](#-related-work)
+16. [Team](#-team)
+17. [References](#-references)
+18. [License](#-license)
 
 ---
 
 ## 🔬 What is SimQC?
 
-SimQC simulates the circuit operations of a quantum computer entirely in the browser. A quantum state of `n` qubits is stored as a vector of `2ⁿ` complex amplitudes, and every gate is applied as a matrix operation on that vector. The project is implemented from scratch: it depends on no quantum SDK and no server-side runtime.
+SimQC simulates the circuit operations of a quantum computer entirely in the browser. A quantum state of `n` qubits is stored as a vector of `2ⁿ` complex amplitudes, and every gate is applied as a pairwise update of the amplitudes it affects — never as a materialized matrix multiplication. The project is implemented from scratch: it depends on no quantum SDK and no server-side runtime.
 
 The goal is a simulator that is **numerically correct**, **efficient**, and **inspectable**: a user should be able to see not only the final measurement of a circuit but also how it got there.
 
@@ -100,7 +101,7 @@ It is also a learning project: the team is implementing quantum circuits and alg
 
 ### Core (committed)
 
-- **Explicit state vectors** of complex amplitudes, with normalization enforced after every gate.
+- **Explicit state vectors** of complex amplitudes, with the norm checked after every gate (renormalization only on drift beyond 1e-9, and always with a logged warning).
 - **Targeted gate application:** a gate updates only the amplitudes it affects.
 - **Measurement** by repeated-shot sampling with state collapse.
 - **Canonical algorithms** built on the public simulator interface, with at least three of Deutsch–Jozsa, Grover and QFT.
@@ -184,13 +185,13 @@ $$
 P(i) = |\alpha_i|^2 ,
 $$
 
-after which the state collapses to that outcome. Repeating the process for many *shots* produces a histogram that approaches these probabilities.
+after which the state collapses to that outcome. Each of many *shots* re-simulates from the pre-measurement state — the state is cloned before the first collapse — and the empirical frequencies form a histogram that approaches these probabilities.
 
 ### Implementation notes
 
-- Amplitudes are stored in JavaScript typed arrays (`Float64Array`), with real and imaginary parts interleaved or paired.
-- Complex arithmetic is implemented once and reused by every module above it.
-- Qubit limits: a warning is raised at **20 qubits**, with a maximum of **24 qubits**, because memory grows with $2^n$.
+- Amplitudes are stored as two parallel `Float64Array`s, `re[]` and `im[]`, each of length $2^n$ — no interleaved layout, no array of objects. The arrays are private to `StateVector`; all external access goes through its facade API.
+- Complex arithmetic is implemented once and reused by every module above it; the multiplication identity $(a+bi)(c+di) = (ac - bd) + (ad + bc)i$ lives in the kernel pattern only.
+- Qubit limits: a warning is raised at **20 qubits**, with a maximum of **24 qubits**, because memory grows with $2^n$. These are project-level operational limits, outside the normative scope of `CONVENTIONS.md`.
 
 ---
 
@@ -227,17 +228,22 @@ flowchart LR
     CORE -- "state vector, probabilities" --> UI
 ```
 
-**Circuit model.** A circuit is an ordered list of *columns*. Each column holds operations on specific qubits: gates, controls, or empty cells. Circuits serialize to JSON, for example:
+**Circuit model.** A circuit is an ordered list of *columns* (time flows left → right); each column holds operations on specific qubits (gates, controls, or empty cells). Circuits serialize to JSON, for example:
 
 ```json
 {
-  "qubits": 2,
+  "format": "simqc-circuit",
+  "version": 1,
+  "bitOrder": "little-endian",
+  "numQubits": 2,
   "columns": [
-    ["H", null],
-    ["CONTROL", "X"]
+    [ { "gate": "H", "target": 0 } ],
+    [ { "gate": "CNOT", "control": 0, "target": 1 } ]
   ]
 }
 ```
+
+Qubit references are integers, never bit strings. `bitOrder` is mandatory in the schema so old saved circuits remain interpretable if conventions ever change. Rotation parameters are serialized in radians, with the field name including the unit (e.g. `"thetaRad"`).
 
 **Dependency order inside the core:**
 
@@ -246,6 +252,23 @@ complex numbers → quantum state → gate library → circuit executor → meas
 ```
 
 The editor and state displays are layered on top, then the full simulator, then the algorithms.
+
+---
+
+## ⚙️ Core conventions
+
+`CONVENTIONS.md` is the normative source of truth for all code in the simulation core (`core/`, `gates/`, `circuit/`, `measurement/`, `algorithms/`). If code and that document disagree, the document wins; changes require a pull request that updates it in the same commit. The rules below summarize it.
+
+- **Indices in the core, labels in the UI.** No display formatting ever leaks into the core, and no index arithmetic is ever performed in the UI.
+- **The hot path allocates nothing.** Gate-application kernels operate exclusively on raw `number` scalars — no `Complex` or `Matrix` objects, no intermediate objects, no array literals inside loops. All math is unrolled scalar arithmetic on raw doubles.
+- **Gates are flat tuples.** Each 2×2 gate is defined with `Complex`/`Matrix` once, then flattened to a canonical 8-number tuple `[g00re, g00im, g01re, g01im, g10re, g10im, g11re, g11im]`. Kernel signatures take flat tuples, never `Matrix` objects: `applyGate(state, gateFlat, targetQubit, controlMask = 0)`. A parameterized gate (e.g. `Rx(θ)`) is a function `θ → flat tuple`, with θ in radians (`Rx(π)` ≡ X up to global phase — a test case, not an implementation shortcut). Multi-qubit gates (CNOT, CZ, SWAP, Toffoli) are dedicated kernels, not dense 4×4 products; SWAP is three CNOTs or a direct three-way exchange, and the choice must be tested for both orderings.
+- **Unitarity is validated at construction.** Every gate passes ‖G†G − I‖ < 1e-12 or the library throws.
+- **Controls.** The pair update runs only when `(i & controlMask) === controlMask`; every other amplitude stays bit-identical — a controlled gate never perturbs, rounds, or rewrites amplitudes it does not act on. A gate may never use the same qubit as both control and target (asserted at application time; throws in tests, warns in production).
+- **Columns.** Gates within a column act on disjoint qubits — enforced by the editor, asserted by the executor — and are applied in left-to-right wire order. Columns execute in order, column 0 first; the composite unitary composes right-to-left ($U = U_k \cdots U_2 U_1$), and no code may build the composite matrix.
+- **State vector.** Two private `Float64Array`s (`re[]`, `im[]`) behind a facade (`numQubits`, `size`, `getRe`, `getIm`, `get`, `set`, `normSquared`, `probability`, `probabilities`, `clone`). A fresh state is exactly `|00…0⟩` — `re[0] = 1`, every other entry `0`, never `NaN`, never `undefined`.
+- **Numerical invariants.** The norm is checked after every gate: drift ≤ 1e-9 does nothing; drift > 1e-9 renormalizes **and logs a warning** (silent renormalization is forbidden — it masks exactly the bugs the validation plan is designed to catch); any `NaN`/`Infinity` throws immediately. Amplitudes untouched by a gate stay bit-identical (`Object.is` semantics). No global-phase canonicalization: `|ψ⟩` and `e^{iφ}|ψ⟩` remain distinct in memory. Test tolerances: 1e-12 for n ≤ 8, 1e-9 for larger states.
+- **Measurement is a module, not a gate.** It is non-unitary and breaks the reversible pipeline. A single shot draws outcome `i` with probability `|αᵢ|²`, then collapses in place (`re[i] = 1, im[i] = 0`, all other entries `0`). Repeated-shot sampling always re-simulates from the pre-measurement state (`clone()` before the first collapse). The debugger owns the pre-measurement copy of the state.
+- **Display.** The UI renders basis labels as `|q_{n-1} … q_1 q_0⟩` (big-endian strings) because circuit diagrams draw qubit 0 as the top wire. This reversal happens only in `visualization/` and `editor/` — never in the core, and never in test assertions, which always compare raw indices.
 
 ---
 
@@ -266,7 +289,7 @@ The editor and state displays are layered on top, then the full simulator, then 
 
 **Planned extension:** I, S, T, CZ, SWAP, Toffoli.
 
-A gate's visual symbol and its mathematical definition are kept separate. The editor knows the symbol; only the core knows the matrix.
+Every gate is validated for unitarity ($\lVert G^\dagger G - I \rVert < 10^{-12}$) at construction; the library throws otherwise. A gate's visual symbol and its mathematical definition are kept separate: the editor knows the symbol; only the core knows the matrix — and every gate is flattened to its 8-number tuple before it reaches the kernel (see [Core conventions](#-core-conventions)).
 
 ---
 
@@ -327,7 +350,7 @@ cd <REPO>
 
 ## 📁 Repository structure
 
-The layout follows the course manual's required organization.
+The layout follows the course manual's required organization. `CONVENTIONS.md` refers to the core directories by their short names (`core/`, `gates/`, `circuit/`, `measurement/`, `algorithms/`, `visualization/`, `editor/`); in this repository they live under `support/`.
 
 ```
 .
@@ -365,12 +388,14 @@ Quantum simulators are easy to get subtly wrong. A single indexing mistake can y
 |:-:|---|---|
 | 1 | **Complex arithmetic** | Addition, multiplication, conjugation, modulus against exact analytical values |
 | 2 | **Canonical state transformations** | $H\lvert0\rangle$, $X\lvert0\rangle$, $Z\lvert1\rangle$ give the textbook amplitudes |
-| 3 | **Invariants** | Norm and unitarity preserved: $\sum_i \lvert\alpha_i\rvert^2 = 1$ after every gate |
+| 3 | **Invariants** | Norm checked after every gate: $\sum_i \lvert\alpha_i\rvert^2 = 1$ within 1e-9; drift beyond that renormalizes with a logged warning, never silently; any `NaN`/`Infinity` throws immediately |
 | 4 | **Multi-qubit circuits and identities** | Bell and GHZ entanglement, $H^2 = X^2 = I$; teleportation later as an integration test |
 | 5 | **Algorithm benchmarks** | Deutsch–Jozsa, Grover and QFT against known theoretical results, such as Grover's success probability at peak amplification |
-| 6 | **Differential testing** | Test states are generated across six amplitude profiles, serialized to JSON, executed in SimQC, and compared with the same runs in reference frameworks |
+| 6 | **Differential testing** | Random states, all gates, n ≤ 6: the pairwise kernel is compared against a naive `Matrix`/Kronecker path inside SimQC; circuits are also serialized to JSON, executed, and compared with the same runs in reference frameworks |
 
 Qiskit and Cirq appear **only as reference oracles in layer 6**. They are not dependencies of SimQC.
+
+`CONVENTIONS.md` §10 mandates that the following tests exist: partner-index correctness (H on qubit 1 of a 3-qubit state pairs (i, i+2); a CNOT swaps exactly the index pairs selected by its control and target masks); fresh state ≡ |00…0⟩ exactly; pairwise kernel vs. naive `Matrix`/Kronecker path for n ≤ 6, random states, all gates; controlled gates leave control-0 amplitudes bit-identical; norm after every gate within 1 ± 1e-9, with drift producing a warning rather than a silent fix; bit-identical pass-through for gates on other qubits; every gate passes G†G = I at 1e-12; and circuit → JSON → circuit round-trip is identity.
 
 ---
 
