@@ -3,7 +3,14 @@
 > This file is normative for all code in `core/`, `gates/`, `circuit/`, `measurement/`, and `algorithms/`. If code and this document disagree, this document wins. Changes require a pull request that updates this file in the same commit.
 
 
+---
+## Problems in this doc:
 
+§10's example "CNOT(0→1) swaps exactly indices {2,3} and {6,7}" is inconsistent with its own §2/§5 semantics: control=0 (mask 1), target=1 (mask 2) swaps {1,3} and {5,7}; the sets {2,3},{6,7} correspond to control=1, target=0. Clarify the arrow notation before README cites index-set examples.
+
+---
+## Naming Convention:
+JS Convention
 ---
 
 File Structure:
