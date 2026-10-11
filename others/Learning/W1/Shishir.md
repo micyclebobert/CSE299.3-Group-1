@@ -52,24 +52,22 @@ We represent it using the concept of linear combination in linear algebra. First
 
 ---
 
-## [Date]
+## 2026-10-11
 
 ### Learning / Insights
-- 
-- 
+When dealing with a single qubit the vector space that represents the state of the qubit is called the Hilbert Space. It is a 2 dimensional complex vector space. When we increase the number of qubits, we perform a kronecker product with each increased qubit to increase the dimensions of the space. I learned how a one qubit is applied on a quantum system composed of multiple qubits. The memory problem that we have to deal with has its roots here since if we want to apply a one qubit gate to a system of multiple qubits, the dimension of the gate has to be increased and will be filled 75% by zeros since it does not affect the other qubits. We work around this by introducing a pairwise computation that gives similar results to the kronecker product but with better time complexity performance. If I have a 3 qubit system, and I apply the H gate to the first qubit, I can choose to split the state vector in pairs. I only target the basis states where the qubits that I do not touch remain unchanged. So maybe I choose the pair of basis staes 001 and 000 where the last qubit is being targetted for the operation and the first 2 remain unchanged. Then I simply take the amplitudes of these 2 basis states and multiply them with the H matrix to get our modified amplitude. 
+
+If I choose to use multi qubit gates such as the CNOT, I will be splitting the basis states into groups of 4 since I will be targetting the states where the untouched qubit remains unchanged. It could be lets say 000, 001, 010, 011. Here the first qubit remains unchanged and the other 2 go through the modifications under the CNOT gate. Same goes for CCNOT or the Toffoli gate which is a 3 qubit gate. 
+
+We had to figure out the conventions to follow in the entire project for our state space since it will have lasting impact on the way the project goes forward. We had to decide on the array indexing on the quantum state vector. We are going with little endiannes since it reduces confusion and helps with math operations and also follows the standard followed by qiskit.
+
+I learned about the No Cloning Theorem which states that any quantum system cannot be precisely recreated. Therefore we cannot perform operations like FanIn and FanOut in Logisim. No matter how a quantum system is prepared it is impossible to replicate precisely since ultimately the information that is extracted from the quantum system is probabilistic. This heavily impacts the scope of our circuit simulator since there cannot be objects like sequenctial circuits and memory like D flipflops. 
 
 ### Work Completed
-- 
-- 
-
-### Project Updates
-- 
-- 
+  Conventions.md file has been created to follow in the project forward and learnings have been updated
 
 ### Challenges / Blockers
-- 
-- 
+  Had to make changes to some conventions, previously thought we would use the complex class in the state vector representation but this increases our calculation complexity heavily so we have chosen to split the real and imaginary parts of the complex amplitudes into 2 separate arrays. 
 
 ### Next Steps
-- 
-- 
+  The state vector will be created next. We will have implemented the gates to be used and would have made progress with the implementation of the AI. 
