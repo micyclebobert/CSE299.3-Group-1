@@ -1,0 +1,29 @@
+# ============================================================
+# SimQC — Browser-Based Quantum Circuit Simulator
+# requirements.txt
+#
+# This project uses NO quantum SDK (no Qiskit/Cirq/PennyLane
+# equivalent) and has ZERO runtime JavaScript dependencies.
+# The simulation core (complex numbers, state vector, pairwise
+# gate kernel, measurement) is implemented entirely from
+# scratch in plain JavaScript (ES2023, ECMAScript spec [40]).
+#
+# ============================================================
+
+# --- Dev dependencies (installed via package.json) ----------
+# eslint          ^9.x    static analysis (index-arithmetic and
+#                         allocation rules from CONVENTIONS.md)
+# prettier        ^3.x    code formatting (4 contributors)
+
+# --- Test runner ---------------------------------------------
+# Node.js >= 20 (built-in node --test runner; no package)
+
+# --- External (optional, not npm packages) -------------------
+# Ollama (optional): local LLM backend for the AI explainer/
+#   builder module. Install from https://github.com/ollama/ollama
+#   Only needed if the AI backend is switched to local mode;
+#   the default backend is a remote HTTPS API via fetch().
+#
+# A modern browser (Chrome/Firefox/Edge/Safari — any engine
+# with Float64Array + ES2023 support). No other runtime
+# requirement; the app is fully client-side.

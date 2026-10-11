@@ -433,14 +433,6 @@ The proposed features (breakpoints, reusable blocks, entanglement highlighting, 
 
 The full reference list is in the project proposal report (`others/`).
 
----
-
-## 📄 License
-
-*To be decided by the team.* If any Quirk code is reused, the Apache-2.0 license terms and attribution must be preserved.
-
----
-
 <div align="center">
 
 **CSE 299 · Section 3 · Group 1 · North South University**

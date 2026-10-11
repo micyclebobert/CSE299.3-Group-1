@@ -2,6 +2,13 @@
 
 > This file is normative for all code in `core/`, `gates/`, `circuit/`, `measurement/`, and `algorithms/`. If code and this document disagree, this document wins. Changes require a pull request that updates this file in the same commit.
 
+
+
+---
+
+File Structure:
+.tmp Files/Folders here could disappear anytime
+.dump File/Folder here are semi permanent
 ---
 
 ## 1. Purpose and Scope
