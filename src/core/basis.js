@@ -90,6 +90,30 @@ const T_MATRIX = new Matrix([
 /*  Exports                                                           */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Convert a Complex Matrix into a compact flat Float64Array of
+ * interleaved real/imaginary parts in row-major order:
+ *   [m00re, m00im, m01re, m01im, ..., m10re, m10im, ...]
+ *
+ * For a 2x2 matrix this yields exactly 8 elements, matching the
+ * canonical hot-path flat tuple (§5).
+ *
+ * @param {Matrix} matrix - Complex Matrix to flatten
+ * @returns {Float64Array} interleaved [re, im] pairs, row-major
+ */
+function matrixToFloat8(matrix) {
+    const out = new Float64Array(matrix.rows * matrix.cols * 2);
+    let k = 0;
+    for (let i = 0; i < matrix.rows; i++) {
+        for (let j = 0; j < matrix.cols; j++) {
+            const c = matrix.data[i][j];
+            out[k++] = c.real;
+            out[k++] = c.imaginary;
+        }
+    }
+    return out;
+}
+
 module.exports = {
     // Canonical flat tuples for the hot-path kernel
     I,
@@ -109,4 +133,6 @@ module.exports = {
     T_MATRIX,
     // Constant
     invSqrt2,
+    // Utility
+    matrixToFloat8,
 };
