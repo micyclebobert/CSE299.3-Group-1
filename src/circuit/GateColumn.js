@@ -134,4 +134,4 @@ export class GateColumn {
   }
 }
 
-export default GateColumn;
+

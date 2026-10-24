@@ -63,4 +63,4 @@ export class Circuit {
   }
 }
 
-export default Circuit;
+

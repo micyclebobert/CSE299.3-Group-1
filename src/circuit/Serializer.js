@@ -265,4 +265,3 @@ function parseControlDescriptor(c, where, idx) {
 // Re-export the error class so tests / CLI can instanceof-check it.
 // ===========================================================================
 export { SerializerError };
-export default { toJson, fromJson, SerializerError };
