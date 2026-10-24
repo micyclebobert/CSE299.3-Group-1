@@ -1,0 +1,16 @@
+{
+  "name": "simqc",
+  "version": "0.2.0",
+  "description": "SimQC — Browser-resident Quantum Circuit Simulator. Sprint 2.",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "test": "node --test test/",
+    "test:serializer": "node --test test/serializer.test.js",
+    "test:kernel": "node --test test/kernel.test.js",
+    "test:differential": "node --test test/differential.test.js"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "format": "simqc-circuit",
+  "version": 1,
+  "bitOrder": "little-endian",
+  "numQubits": 2,
+  "columns": [
+    [
+      { "gate": "H", "target": 0 }
+    ],
+    [
+      { "gate": "CNOT", "target": 1, "controls": [ { "row": 0, "on": true } ] }
+    ]
+  ]
+}
