@@ -119,6 +119,23 @@ export class GateColumn {
       return g; // Gate is frozen, no need to clone
     });
     Object.freeze(this._gates);
+
+    // Assert intra-column disjointness: no two operations may share a qubit row
+    // (target or control). Violating this would make simultaneous execution incorrect.
+    const usedRows = new Set();
+    for (const gate of this._gates) {
+      const rows = new Set([gate.target]);
+      for (const c of gate.controls) rows.add(c.row);
+      for (const row of rows) {
+        if (usedRows.has(row)) {
+          throw new Error(
+            `GateColumn: qubit row ${row} is used by more than one gate in the same column`
+          );
+        }
+        usedRows.add(row);
+      }
+    }
+
     Object.freeze(this);
   }
 

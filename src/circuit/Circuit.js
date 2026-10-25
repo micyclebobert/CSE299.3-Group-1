@@ -61,6 +61,38 @@ export class Circuit {
     }
     return true;
   }
+
+  /**
+   * Return a new Circuit with `column` inserted at `index` (immutable).
+   */
+  withColumnAt(index, column) {
+    if (!(column instanceof GateColumn)) {
+      throw new TypeError(
+        `withColumnAt expects a GateColumn instance, got: ${
+          column && column.constructor && column.constructor.name
+        }`
+      );
+    }
+    if (!Number.isInteger(index) || index < 0 || index > this._columns.length) {
+      throw new RangeError(
+        `Column index ${index} is out of range [0, ${this._columns.length}]`
+      );
+    }
+    const next = [...this._columns];
+    next.splice(index, 0, column);
+    return new Circuit({ numQubits: this._numQubits, columns: next });
+  }
+
+  /**
+   * Return a new Circuit with a different qubit count (immutable).
+   * Columns are carried over unchanged; callers must ensure gate targets remain valid.
+   */
+  withRows(numQubits) {
+    if (!Number.isInteger(numQubits) || numQubits < 1) {
+      throw new TypeError(`withRows expects a positive integer, got: ${String(numQubits)}`);
+    }
+    return new Circuit({ numQubits, columns: this._columns });
+  }
 }
 
 
