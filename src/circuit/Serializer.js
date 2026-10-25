@@ -1,12 +1,5 @@
 // =============================================================================
 // src/circuit/Serializer.js
-// -----------------------------------------------------------------------------
-// Member 4 — Sprint 2, Phase A.
-//
-// Converts a Circuit object <-> canonical v1 JSON, losslessly.
-//
-// Canonical v1 JSON shape (exact key order matters for byte-identical output,
-// which is required for SHA-256 caching later in the project):
 //
 //   {
 //     "format": "simqc-circuit",
@@ -23,12 +16,7 @@
 // Two functions are exported:
 //   toJson(circuit)  -> string     (pretty-printed, 2-space indent)
 //   fromJson(text)   -> Circuit    (strict validation; throws on any deviation)
-//
-// The two are exact inverses: for any Circuit c,
-//   fromJson(toJson(c)).isEqualTo(c) === true
-//
-// Anti-controls ({ on: false }) are preserved verbatim — never converted to a
-// bitmask at this layer. Bitmask construction is Member 1's kernel concern.
+
 // =============================================================================
 
 import { Circuit } from './Circuit.js';
@@ -48,17 +36,9 @@ class SerializerError extends Error {
   }
 }
 
-// ===========================================================================
-// toJson(circuit) -> string
-// ---------------------------------------------------------------------------
-// Walks columns in order, walks each gate, emits the canonical JSON object
-// with the exact key order shown in the file header.
-//
-// Implementation note: we deliberately build plain JS objects with controlled
-// key insertion order, then call JSON.stringify once. JS object key order is
-// preserved for string keys in insertion order (ES2015+), so this gives us
-// byte-identical output for semantically-equal circuits.
-// ===========================================================================
+
+
+
 export function toJson(circuit) {
   if (!(circuit instanceof Circuit)) {
     throw new TypeError(`toJson expects a Circuit instance, got: ${circuit && circuit.constructor && circuit.constructor.name}`);
@@ -103,24 +83,11 @@ function gateToJson(gate) {
   return obj;
 }
 
-// ===========================================================================
-// fromJson(text) -> Circuit
-// ---------------------------------------------------------------------------
-// Strict parsing with full validation. Throws SerializerError on any
-// deviation from the canonical v1 contract.
-//
-// Validation checklist (matches Field Guide section 6.1):
-//   - input is a string
-//   - JSON.parse succeeds (catches SyntaxError -> SerializerError)
-//   - top-level value is an object
-//   - format === 'simqc-circuit'
-//   - version === 1
-//   - bitOrder === 'little-endian'
-//   - numQubits is a positive integer
-//   - columns is an array of arrays of gate descriptors
-//   - each gate descriptor: gate (non-empty string), target (non-neg int),
-//     optional controls array of { row, on } objects
-// ===========================================================================
+
+
+
+
+
 export function fromJson(text) {
   if (typeof text !== 'string') {
     throw new SerializerError(`fromJson expects a string, got: ${typeof text}`);
@@ -261,7 +228,6 @@ function parseControlDescriptor(c, where, idx) {
   return { row: c.row, on: c.on };
 }
 
-// ===========================================================================
-// Re-export the error class so tests / CLI can instanceof-check it.
-// ===========================================================================
+
+
 export { SerializerError };
