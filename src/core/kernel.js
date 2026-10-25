@@ -28,6 +28,66 @@ export function apply1QubitOp(re, im, n, target, gateFlat, controlMask, antiCont
   }
 }
 
+export function applyCnot(re, im, n, control, target) {
+  const size = 1 << n;
+  const maskC = 1 << control;
+  const maskT = 1 << target;
+  if ((maskC & maskT) !== 0) {
+    throw new Error("control and target qubit rows must be disjoint");
+  }
+  for (let i = 0; i < size; i++) {
+    if ((i & maskC) === maskC) {
+      const j = i ^ maskT;
+      if (i < j) {
+        const tr = re[i];
+        re[i] = re[j];
+        re[j] = tr;
+        const ti = im[i];
+        im[i] = im[j];
+        im[j] = ti;
+      }
+    }
+  }
+}
+
+export function applyCz(re, im, n, control, target) {
+  const size = 1 << n;
+  const maskC = 1 << control;
+  const maskT = 1 << target;
+  if ((maskC & maskT) !== 0) {
+    throw new Error("control and target qubit rows must be disjoint");
+  }
+  for (let i = 0; i < size; i++) {
+    if ((i & maskC) === maskC && (i & maskT) === maskT) {
+      re[i] = -re[i];
+      im[i] = -im[i];
+    }
+  }
+}
+
+export function applyToffoli(re, im, n, c0, c1, target) {
+  const size = 1 << n;
+  const maskC0 = 1 << c0;
+  const maskC1 = 1 << c1;
+  const maskT = 1 << target;
+  if (((maskC0 | maskC1) & maskT) !== 0) {
+    throw new Error("control and target qubit rows must be disjoint");
+  }
+  for (let i = 0; i < size; i++) {
+    if ((i & maskC0) === maskC0 && (i & maskC1) === maskC1) {
+      const j = i ^ maskT;
+      if (i < j) {
+        const tr = re[i];
+        re[i] = re[j];
+        re[j] = tr;
+        const ti = im[i];
+        im[i] = im[j];
+        im[j] = ti;
+      }
+    }
+  }
+}
+
 export function applySwap(re, im, n, q0, q1) {
   const size = 1 << n;
   const mask0 = 1 << q0;

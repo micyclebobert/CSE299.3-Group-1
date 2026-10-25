@@ -1,5 +1,5 @@
-const Complex = require("./Complex");
-const Matrix = require("./Matrix");
+import { Complex } from './Complex.js';
+import { Matrix } from './Matrix.js';
 
 const invSqrt2 = 1 / Math.sqrt(2);
 
@@ -114,16 +114,11 @@ function matrixToFloat8(matrix) {
     return out;
 }
 
-module.exports = {
-    // Canonical flat tuples for the hot-path kernel
-    I,
-    X,
-    Y,
-    Z,
-    H,
-    S,
-    T,
-    // Definition-time Complex Matrix forms (validation / display)
+/* ------------------------------------------------------------------ */
+/*  Unitarity validation at definition time (§5.1)                    */
+/* ------------------------------------------------------------------ */
+
+const UNITARY_MATRICES = [
     I_MATRIX,
     X_MATRIX,
     Y_MATRIX,
@@ -131,8 +126,29 @@ module.exports = {
     H_MATRIX,
     S_MATRIX,
     T_MATRIX,
-    // Constant
+];
+
+for (const matrix of UNITARY_MATRICES) {
+    if (!Matrix.isUnitary(matrix)) {
+        throw new Error(`Gate matrix is not unitary: ${matrix}`);
+    }
+}
+
+export {
+    I,
+    X,
+    Y,
+    Z,
+    H,
+    S,
+    T,
     invSqrt2,
-    // Utility
+    I_MATRIX,
+    X_MATRIX,
+    Y_MATRIX,
+    Z_MATRIX,
+    H_MATRIX,
+    S_MATRIX,
+    T_MATRIX,
     matrixToFloat8,
 };

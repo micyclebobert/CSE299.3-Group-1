@@ -1,4 +1,4 @@
-class Complex {
+export class Complex {
     constructor(real, imaginary = 0) {
         this.real = real;
         this.imaginary = imaginary;
@@ -83,8 +83,4 @@ class Complex {
     phase() {
         return Math.atan2(this.imaginary, this.real);
     }
-}
-
-if (typeof module !== "undefined" && module.exports) {
-    module.exports = Complex;
 }

@@ -54,18 +54,41 @@ export class StateVector {
     return sum;
   }
 
+  renormalize() {
+    const norm = Math.sqrt(this.normSquared());
+    if (!Number.isFinite(norm) || norm === 0.0) {
+      throw new Error("Cannot renormalize a non-finite or zero StateVector");
+    }
+    for (let i = 0; i < this.#size; i++) {
+      this.#re[i] /= norm;
+      this.#im[i] /= norm;
+    }
+  }
+
+  get(i) {
+    return [this.#re[i], this.#im[i]];
+  }
+
+  set(i, re, im) {
+    if (typeof re !== "number" || typeof im !== "number") {
+      throw new TypeError("set(i, re, im) accepts raw numbers only");
+    }
+    this.#re[i] = re;
+    this.#im[i] = im;
+  }
+
   clone() {
     const copy = new StateVector(this.#numQubits);
-    copy._re.set(this.#re);
-    copy._im.set(this.#im);
+    copy.getRawRe().set(this.#re);
+    copy.getRawIm().set(this.#im);
     return copy;
   }
 
-  get _re() {
+  getRawRe() {
     return this.#re;
   }
 
-  get _im() {
+  getRawIm() {
     return this.#im;
   }
 }

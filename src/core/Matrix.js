@@ -1,6 +1,6 @@
-const Complex = require("./Complex");
+import { Complex } from './Complex.js';
 
-class Matrix {
+export class Matrix {
     constructor(data) {
         this.data = data;
         this.rows = data.length;
@@ -107,6 +107,50 @@ class Matrix {
     multiply(other) {
         return Matrix.multiply(this, other);
     }
-}
 
-module.exports = Matrix;
+    conjugateTranspose() {
+        const result = [];
+        for (let i = 0; i < this.rows; i++) {
+            const row = [];
+            for (let j = 0; j < this.cols; j++) {
+                row.push(this.data[j][i].conjugate());
+            }
+            result.push(row);
+        }
+        return new Matrix(result);
+    }
+
+    frobeniusNormSquared() {
+        let sum = 0;
+        for (let i = 0; i < this.rows; i++) {
+            for (let j = 0; j < this.cols; j++) {
+                sum += this.data[i][j].magnitudeSquared();
+            }
+        }
+        return sum;
+    }
+
+    static isUnitary(matrix, tolerance = 1e-12) {
+        const n = matrix.rows;
+        const dagger = matrix.conjugateTranspose();
+        const product = Matrix.multiply(dagger, matrix);
+        const diff = Matrix.sub(product, Matrix.identity(n));
+        return diff.frobeniusNormSquared() < tolerance;
+    }
+
+    static tensorProduct(a, b) {
+        const result = [];
+        for (let i = 0; i < a.rows; i++) {
+            for (let k = 0; k < b.rows; k++) {
+                const row = [];
+                for (let j = 0; j < a.cols; j++) {
+                    for (let l = 0; l < b.cols; l++) {
+                        row.push(a.data[i][j].multiply(b.data[k][l]));
+                    }
+                }
+                result.push(row);
+            }
+        }
+        return new Matrix(result);
+    }
+}
