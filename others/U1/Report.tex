@@ -1,0 +1,174 @@
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{algorithmic}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{url}
+
+\begin{document}
+
+\title{SimQC -- Weekly Progress Report\\}
+\author{
+    \IEEEauthorblockN{Aoutul Nabi Purna\IEEEauthorrefmark{1}, Shishir Dhar\IEEEauthorrefmark{2}, Shihab Sharar\IEEEauthorrefmark{3}, and Md. Iftikhar Alam Hridik\IEEEauthorrefmark{4}}
+    \IEEEauthorblockA{Department of Electrical and Computer Engineering, North South University, Dhaka, Bangladesh}
+    \IEEEauthorblockA{Emails: \{\IEEEauthorrefmark{1}aoutul.purna.241, \IEEEauthorrefmark{2}shishir.dhar.241, \IEEEauthorrefmark{3}shihab.sharar.241, \IEEEauthorrefmark{4}iftikhar.hridik.241\}@northsouth.edu}
+}
+
+\maketitle
+
+\begin{abstract}
+This report outlines the foundational development of the SimQC simulation engine, focusing on the mathematical abstraction layer, memory layout decisions, and baseline gate-application benchmarks.
+\end{abstract}
+
+\section{Progress Summary}
+During this period, we completed the mathematical foundation layer of the simulation core and prepared the architecture for the state-vector engine[cite: 1]. Completed deliverables include:
+\begin{enumerate}
+    \item A \texttt{Complex} class implementing addition, multiplication, conjugation, modulus, and scalar helpers, with unit tests validated against exact analytical values (proposal validation Layer~1)[cite: 1];
+    \item A \texttt{Matrix} class supporting complex matrix-vector and matrix-matrix products, which will double as the naive $\mathcal{O}(4^n)$ reference implementation for differential testing (Layer~6)[cite: 1];
+    \item A written conventions specification (\texttt{CONVENTIONS.md}) fixing bit ordering, memory layout, and the gate-application contract before any state-vector code is written[cite: 1].
+\end{enumerate}
+We deliberately deferred implementation of the \texttt{StateVector} class until conventions were frozen, since endianness and layout decisions propagate into every subsequent kernel[cite: 1].
+
+\section{Learning: What to Use, What Not to Use, and Why}
+\label{sec:learning}
+The textbook Kronecker product approach is unusable at scale[cite: 1]. Lifting a gate $G$ on qubit $t$ to the full $2^n \times 2^n$ operator:
+\begin{equation}
+    U = I \otimes \dots \otimes G \otimes \dots \otimes I
+\end{equation}
+and multiplying it against the state vector costs $\mathcal{O}(4^n)$[cite: 1]. At 16 qubits, a single gate matrix requires $\sim$34~GB of RAM[cite: 1]. Furthermore, the matrix is overwhelmingly sparse; for $(I \otimes I \otimes H)$ on 3 qubits, 48 of the 64 entries are zero, meaning 75\% of the arithmetic involves zero amplitudes[cite: 1]. 
+
+The matrix-free pairwise method (Eq.~6 of our proposal) instead updates only the $2^{n-1}$ amplitude pairs whose indices differ in bit $t$ ($j = i \oplus 2^t$), each with the same $2 \times 2$ matrix $G$, yielding $\mathcal{O}(2^n)$ runtime per gate[cite: 1]. Our worked 3-qubit example confirmed that the two methods are numerically identical and that a CNOT gate reduces further to pure in-place amplitude swapping (a permutation), requiring no floating-point multiplication[cite: 1].
+
+\textbf{Entanglement forbids lazy Kronecker products.} We initially considered keeping each qubit as an independent $2 \times 1$ vector and deferring the tensor product to the end[cite: 1]. This holds only while the state is separable: the separability condition for a 2-qubit state,
+\begin{equation}
+    c_{00}c_{11} - c_{01}c_{10} = 0,
+\end{equation}
+holds after single-qubit gates but is violated the moment an entangling gate (e.g., CNOT, CZ) acts[cite: 1]. CNOT itself does not factorize as $A \otimes B$[cite: 1]. Simulators must therefore maintain the full $2^n$-dimensional vector from the start, matching the memory constraint (warning threshold at 20 qubits, hard cap at 24 qubits) specified in our project objectives[cite: 1].
+
+\textbf{Object allocation does not belong in the hot path.} Although our \texttt{Complex} class is complete and correct, representing the state vector as an array of \texttt{Complex} objects was rejected[cite: 1]. In V8, each object overhead costs roughly 40--56~bytes, compared to 16~bytes for two 64-bit floats in a \texttt{Float64Array} ($\approx 3\times$ memory reduction)[cite: 1]. Additionally, complex multiply-add operations with objects allocate temporary heap instances; at $2^{20}$ amplitudes per gate, this triggers garbage-collector pauses that freeze the editor UI during drag-and-drop interactions[cite: 1]. 
+
+\textit{Decision:} The \texttt{StateVector} class exposes a clean facade (\texttt{get}/\texttt{set} by index) while storing amplitudes in two flat \texttt{Float64Array} buffers (\texttt{re}, \texttt{im})[cite: 1]. The \texttt{Complex} and \texttt{Matrix} classes remain restricted to gate construction (flattened to raw number tuples once at definition time), test fixtures, and UI calculations[cite: 1]. The pairwise execution kernel operates exclusively on primitive doubles and performs zero heap allocation[cite: 1].
+
+\section{Conventions Adopted}
+\label{sec:conventions}
+Table~\ref{tab:conventions} records the design decisions frozen in \texttt{CONVENTIONS.md} before implementation of the state-vector code[cite: 1].
+
+\begin{table*}[t]
+\caption{Conventions Adopted for the Simulation Core (Frozen in \texttt{CONVENTIONS.md})}
+\label{tab:conventions}
+\centering
+\begin{tabular}{lp{12.5cm}}
+\toprule
+\textbf{Convention} & \textbf{Decision} \\
+\midrule
+Qubit ordering & Little-endian: qubit $q = \text{bit } q$ of the amplitude index (partner index is $j = i \oplus (1 \ll q)$); UI reverses bits for display only.[cite: 2] \\
+\addlinespace
+Memory layout & Two \texttt{Float64Array} instances, \texttt{re[i]} and \texttt{im[i]}, hidden behind the \texttt{StateVector} facade.[cite: 2] \\
+\addlinespace
+Kernel arithmetic & Raw scalar doubles only; no \texttt{Complex} instances inside gate-application loops.[cite: 2] \\
+\addlinespace
+Controlled gates & Pair update applied only when \texttt{(i \& controlMask) === controlMask}; non-matching amplitudes left untouched bit-for-bit.[cite: 2] \\
+\addlinespace
+Normalization & Norm verified after every gate; renormalize only if numerical drift $> 10^{-9}$, logging a warning (silent corrections mask arithmetic bugs).[cite: 2] \\
+\addlinespace
+Column semantics & Gates within a single circuit column must act on disjoint qubits; overlap is validated and prevented in the UI.[cite: 2] \\
+\addlinespace
+Serialization & JSON schema stores explicit qubit indices; endianness is explicitly declared in the schema metadata.[cite: 2] \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\section{Literature Review: Conventions in Existing Systems}
+Conventions are neither standardized nor incidental; divergence between implementations is a documented source of cross-library bugs[cite: 1]. Qiskit~\cite{qiskit} uses little-endian qubit ordering internally (qubit 0 = least significant bit), matching our indexing scheme[cite: 1]. However, Qiskit circuit diagrams display qubit 0 at the top, creating a divergence between display and internal index representations[cite: 1]. We adopt this separation explicitly (the core computes via indices, while the UI formats via labels)[cite: 1]. 
+
+OpenQASM~\cite{openqasm} orders qubits as declared in \texttt{qreg} statements and remains agnostic regarding simulator internal layouts, prompting our JSON schema to declare endianness explicitly[cite: 1]. Quirk~\cite{quirk} avoids exposing indexing conventions to users by presenting per-column probability and amplitude displays instead of raw basis labels, a choice suited for real-time reactive inspection[cite: 1, 2]. 
+
+High-performance simulation engines such as qHiPSTER~\cite{qhipster} and the parallel framework of De Raedt et al.~\cite{deraedt} employ the same pairwise amplitude update model used here, establishing that $\mathcal{O}(2^n)$ in-place updates over an explicit state vector represent standard practice[cite: 2]. Our differential test harness (Layer~6) is designed to mitigate cross-framework errors caused by index and convention mismatches[cite: 2].
+
+\section{Proposed Solution and Next Steps}
+During the next sprint, we will execute the following tasks:
+\begin{enumerate}
+    \item Implement the \texttt{StateVector} class (split-array layout, facade API, zero-state initialization $\alpha_0 = 1$)[cite: 2];
+    \item Implement the pairwise update kernel with block iteration (stride $2^t$, branch-free inner loop, unrolled $2 \times 2$ complex multiply-add, and bitwise control masks)[cite: 2];
+    \item Define single-qubit gates ($X, Y, Z, H, R_x, R_y, R_z$) via \texttt{Matrix} representations flattened into raw numeric tuples[cite: 2];
+    \item Construct the differential testing harness comparing the pairwise kernel against the naive matrix product path for $n \le 6$ over pseudo-random state distributions[cite: 2].
+\end{enumerate}
+
+\textbf{Exit criterion:} Producing a Bell state via $H$ followed by CNOT must yield normalized amplitudes $(1/\sqrt{2}, 0, 0, 1/\sqrt{2}) \approx (0.7071, 0, 0, 0.7071)$ up to endianness conventions, with naive-versus-kernel agreement maintained to a tolerance of $10^{-12}$[cite: 2].
+
+\section{AI Module (Explainer \& Builder)---Phased Implementation}
+\subsection{Rationale: Pretrained Open-Weights Models, Not From-Scratch Training}
+Training a language model from scratch is infeasible at course scale, requiring compute and data budgets orders of magnitude beyond our scope[cite: 3]. We instead adopt the established practice of deploying a \emph{pretrained, openly licensed instruct-tuned model} and adapting it to our domain[cite: 3]. Adaptation proceeds along a ladder of increasingly involved techniques---prompting, grounding, few-shot exemplars, evaluation, and finally parameter-efficient fine-tuning (LoRA~\cite{lora}, QLoRA~\cite{qlora})---with each rung independently useful if the project stops there[cite: 3]. A key architectural insight motivates this design: our simulation core already computes the exact intermediate state after every circuit column[cite: 3]. The core therefore serves as a \emph{ground-truth labeling oracle}, both for grounding explainer prompts in real computed states and for synthetically generating the fine-tuning dataset (Phase~5 of our plan), eliminating manual annotation[cite: 3].
+
+\subsection{Phase 0---Conceptual Foundation}
+Before any integration code, the team is completing a structured study of: (i)~tokenization and autoregressive inference~\cite{karpathy}; (ii)~base versus instruct-tuned models; (iii)~post-training quantization (e.g., the GGUF \texttt{Q4\_K\_M} format, $\approx$4.5 bits/weight) and its memory--quality trade-off; and (iv)~the three-layer local stack: the \texttt{llama.cpp} inference engine~\cite{llamacpp}, the GGUF weight format, and Ollama~\cite{ollama} as the serving layer exposing a REST API on \texttt{localhost:11434}[cite: 3]. Deliverables for this phase are an internal comprehension checklist and a frozen interface contract (\texttt{AI\_INTERFACE.md}), mirroring the conventions-first discipline applied to the simulation core in Section~\ref{sec:conventions}[cite: 3].
+
+\subsection{Phase 1---Local Inference Infrastructure and Hardware Budget}
+Ollama has been installed and candidate models evaluated against the team's deployment hardware (16~GB system RAM, RTX~3050 Laptop GPU with 4~GB VRAM, Intel Core i5 12th-gen)[cite: 3]. The constraint analysis is summarized in Table~\ref{tab:models}[cite: 3]. \emph{Decision:} \texttt{qwen2.5:3b} serves as the default development model (loads entirely into VRAM, $100\%$ GPU execution, $\approx$40~tokens/s measured), while \texttt{qwen2.5-coder:7b} is reserved for quality-reference runs via hybrid CPU/GPU offload[cite: 3]. The 14B tier exceeds the local budget and is deferred to a cloud notebook (Google Colab) as the teacher model for Phase~5 dataset generation[cite: 3]. Two integration constraints were identified: Ollama's default 2048-token context window must be raised for our circuit-JSON prompts, and browser cross-origin requests require \texttt{OLLAMA\_ORIGINS} to be set during development[cite: 3]. A measured throughput baseline for each candidate is recorded in the project log and will serve as the comparison point for the fine-tuned model in Phase~7[cite: 3].
+
+\begin{table}[htbp]
+\caption{Candidate Model Evaluation Under Hardware Budget (16~GB RAM, RTX~3050 4~GB VRAM, GGUF Q4\_K\_M Quantizations)}
+\label{tab:models}
+\centering
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Model (Ollama tag)} & \textbf{Disk} & \textbf{Runtime Mem.} & \textbf{Hardware Fit} & \textbf{Role} \\
+\midrule
+\texttt{qwen2.5:3b} & 1.9~GB & $\approx$3~GB & 100\% GPU & Default dev explainer[cite: 3] \\
+\texttt{qwen2.5-coder:7b} & 4.7~GB & $\approx$6~GB & $\approx$46/54 CPU/GPU & Quality reference[cite: 3] \\
+\texttt{qwen2.5:14b} & 9.0~GB & $\approx$11~GB & Exceeds budget & Phase-5 teacher (Colab)[cite: 3] \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+\section{Risks and Mitigations}
+\begin{enumerate}
+    \item \textbf{Memory Ceiling:} At 24 qubits, amplitudes require $\approx$256~MB of RAM[cite: 2]. Mitigated by enforcing a hard simulation limit at 24 qubits with UI threshold warnings at 20 qubits[cite: 2].
+    \item \textbf{GC Pressure:} Mitigated by the zero-allocation kernel design detailed in Section~\ref{sec:learning}[cite: 2].
+    \item \textbf{Bit-Ordering Inconsistencies:} Mitigated by the frozen conventions specification (Section~\ref{sec:conventions}) and automated differential tests against the reference implementation[cite: 2]. For analytical iteration structures, refer to Press et al.~\cite{recipes}[cite: 2].
+\end{enumerate}
+
+\begin{thebibliography}{00}
+
+\bibitem{quirk}
+C.~Gidney, ``Quirk: A drag-and-drop quantum circuit simulator that runs in your browser,'' GitHub repository, Apache-2.0 license. [Online]. Available: \url{https://github.com/strilanc/quirk}
+
+\bibitem{qiskit}
+A.~Javadi-Abhari \emph{et~al.}, ``Qiskit: An open-source framework for quantum computing,'' IBM, 2017. [Online]. Available: \url{https://qiskit.org}
+
+\bibitem{deraedt}
+H.~De~Raedt and K.~Michielsen, ``Computational methods for simulating quantum computers,'' in \emph{Quantum Computing and Quantum Bits in Mesoscopic Systems}. Hoboken, NJ, USA: Wiley, 2004.
+
+\bibitem{qhipster}
+M.~Smelyanskiy, N.~P.~D.~Sawaya, and A.~Aspuru-Guzik, ``qHiPSTER: The Quantum High Performance Software Toolkit,'' 2016, \emph{arXiv:1601.07195}.
+
+\bibitem{openqasm}
+A.~W.~Cross \emph{et~al.}, ``OpenQASM 3 specification,'' 2021. [Online]. Available: \url{https://openqasm.com}
+
+\bibitem{ollama}
+Ollama, ``Run large language models locally,'' 2023. [Online]. Available: \url{https://ollama.com}
+
+\bibitem{recipes}
+W.~H.~Press, S.~A.~Teukolsky, W.~T.~Vetterling, and B.~P.~Flannery, \emph{Numerical Recipes: The Art of Scientific Computing}, 3rd~ed. Cambridge, UK: Cambridge Univ. Press, 2007.
+
+\bibitem{karpathy}
+A.~Karpathy, ``Intro to large language models,'' YouTube lecture, 2023. [Online]. Available: \url{https://youtu.be/zjkBMFhNj_g}
+
+\bibitem{lora}
+E.~J.~Hu \emph{et~al.}, ``LoRA: Low-rank adaptation of large language models,'' 2021, \emph{arXiv:2106.09685}.
+
+\bibitem{qlora}
+T.~Dettmers, A.~Pagnoni, A.~Holtzman, and L.~Zettlemoyer, ``QLoRA: Efficient finetuning of quantized LLMs,'' 2023, \emph{arXiv:2305.14314}.
+
+\bibitem{llamacpp}
+G.~Gerganov, ``llama.cpp: Port of Facebook's LLaMA model in C/C++,'' GitHub repository, 2023. [Online]. Available: \url{https://github.com/ggerganov/llama.cpp}
+
+\end{thebibliography}
+
+\end{document}
