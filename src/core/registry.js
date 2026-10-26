@@ -37,7 +37,11 @@ function freezeMap(map) {
                     `Gate registry is immutable: Map.${prop}() is not allowed`
                 );
             }
-            return Reflect.get(target, prop, receiver);
+            const value = Reflect.get(target, prop, receiver);
+            // Bind Map methods to the underlying Map so `this` inside them is the
+            // real Map, not the proxy (otherwise Map.prototype methods throw an
+            // "incompatible receiver" TypeError).
+            return typeof value === 'function' ? value.bind(target) : value;
         },
         set() {
             throw new Error(

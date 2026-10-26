@@ -2,8 +2,8 @@
 // Mirrors src/circuit/Circuit.js 1:1 per CONVENTIONS.md #224
 import { test } from 'node:test';
 import { strictEqual } from 'assert';
-import { Circuit } from './Circuit.js';
-import { Gate, GateColumn } from './GateColumn.js';
+import { Circuit } from '../../src/circuit/Circuit.js';
+import { Gate, GateColumn } from '../../src/circuit/GateColumn.js';
 
 test('Circuit constructor creates circuit with valid numQubits and columns', () => {
   const column = new GateColumn({ gates: [new Gate({ name: 'H', target: 0 })] });

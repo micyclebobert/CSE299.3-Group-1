@@ -2,7 +2,7 @@
 // Mirrors src/circuit/GateColumn.js 1:1 per CONVENTIONS.md #224
 import { test } from 'node:test';
 import { strictEqual } from 'assert';
-import { Gate, GateColumn } from './GateColumn.js';
+import { Gate, GateColumn } from '../../src/circuit/GateColumn.js';
 
 test('Gate constructor creates gate with valid name, target, controls', () => {
   const gate = new Gate({ name: 'H', target: 0 });

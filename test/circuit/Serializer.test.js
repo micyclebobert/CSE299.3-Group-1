@@ -2,9 +2,9 @@
 // Mirrors src/circuit/Serializer.js 1:1 per CONVENTIONS.md #224
 import { test } from 'node:test';
 import { strictEqual } from 'assert';
-import { toJson, fromJson, SerializerError } from './Serializer.js';
-import { Circuit } from './Circuit.js';
-import { Gate, GateColumn } from './GateColumn.js';
+import { toJson, fromJson, SerializerError } from '../../src/circuit/Serializer.js';
+import { Circuit } from '../../src/circuit/Circuit.js';
+import { Gate, GateColumn } from '../../src/circuit/GateColumn.js';
 
 test('toJson produces valid JSON string from Circuit', () => {
   const column = new GateColumn({ gates: [new Gate({ name: 'H', target: 0 })] });
