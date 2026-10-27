@@ -158,6 +158,71 @@ export class StepTrace {
   get scheduleLength() { return this.#schedule.length; }
 
   /**
+   * Check if Dense Mode snapshots are available.
+   * @returns {boolean}
+   */
+  hasSnapshots() {
+    return this.#mode === 'dense' && this.#snapshots !== null;
+  }
+
+  /**
+   * Get a snapshot at a specific step (Dense Mode only).
+   * Returns a copy of the snapshot data to avoid exposing internal buffers.
+   * @param {number} step - Virtual column step
+   * @returns {{ re: Float64Array, im: Float64Array } | null}
+   */
+  getSnapshot(step) {
+    if (!this.hasSnapshots()) {
+      return null;
+    }
+    if (!Number.isInteger(step) || step < 0 || step > this.#schedule.length) {
+      return null;
+    }
+    const snap = this.#snapshots[step];
+    if (!snap) {
+      return null;
+    }
+    return {
+      re: new Float64Array(snap.re),
+      im: new Float64Array(snap.im),
+    };
+  }
+
+  /**
+   * Get all step indices where the state differs from the previous step.
+   * Only available in Dense Mode.
+   * @returns {number[]}
+   */
+  getChangedSteps() {
+    if (!this.hasSnapshots()) {
+      return [];
+    }
+
+    const changed = [];
+    const snapshots = this.#snapshots;
+    const size = this.#size;
+
+    for (let s = 1; s < snapshots.length; s++) {
+      const prev = snapshots[s - 1];
+      const curr = snapshots[s];
+      if (!prev || !curr) continue;
+
+      let hasChange = false;
+      for (let i = 0; i < size; i++) {
+        if (prev.re[i] !== curr.re[i] || prev.im[i] !== curr.im[i]) {
+          hasChange = true;
+          break;
+        }
+      }
+      if (hasChange) {
+        changed.push(s);
+      }
+    }
+
+    return changed;
+  }
+
+  /**
    * Zero working buffers in place, set |0...0>, reset step = 0.
    * In Dense Mode, cache the initial snapshot. No TypedArray reallocation.
    */
