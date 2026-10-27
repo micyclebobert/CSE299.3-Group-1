@@ -1,14 +1,19 @@
-/**
- * Parameterized single-qubit rotation gates.
- *
- * Per CONVENTIONS.md §5:
- *   - θ is in radians.
- *   - Each gate returns a flat 8-element number tuple:
- *       [g00re, g00im, g01re, g01im, g10re, g10im, g11re, g11im]
- *   - Kernel signatures take flat tuples, never Matrix objects.
- *
- * All rotations are unitary by construction.
- */
+// =============================================================================
+// src/gates/param.js
+// -----------------------------------------------------------------------------
+// Parameterized single-qubit rotation gates.
+//
+// Per CONVENTIONS.md §5:
+//   - θ is in radians.
+//   - Each gate returns a flat 8-element number tuple:
+//       [g00re, g00im, g01re, g01im, g10re, g10im, g11re, g11im]
+//   - Kernel signatures take flat tuples, never Matrix objects.
+//
+// All rotations are unitary by construction.
+//
+// Gate Isolation: gates/ is imported exclusively by main.js. This module has
+// no external imports.
+// =============================================================================
 
 /**
  * X-axis rotation: Rx(θ) = [[cos(θ/2), -i·sin(θ/2)],

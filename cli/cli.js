@@ -1,9 +1,9 @@
 // =============================================================================
-// src/cli.js
+// cli/cli.js
 // -----------------------------------------------------------------------------
-// Member 4 — Bare Node.js CLI runner (headless).
+// Bare Node.js CLI runner (headless).
 //
-//   cat test/fixtures/bell_state.json | node src/cli.js
+//   cat test/fixtures/bell_state.json | node cli/cli.js
 //
 // Reads canonical v1 circuit JSON from process.stdin, parses it, runs the
 // simulation, and writes deterministic JSON state-vector output to
@@ -13,12 +13,17 @@
 // Zero-DOM guardrail: every module in the import graph is DOM-free, so this
 // runs cleanly in bare Node and crashes immediately if any module imports
 // window or document.
+//
+// Location: cli/ (per FOLDER_STRUCTURE Group 7), not src/.
 // =============================================================================
 
-import { fromJson } from './circuit/Serializer.js';
-import { flattenCircuit } from './circuit/Flatten.js';
-import { scheduleColumns } from './circuit/Flatten.js';
-import { evaluate } from './sim/Evaluator.js';
+import { fromJson } from '../src/circuit/Serializer.js';
+import { flattenCircuit } from '../src/circuit/Flatten.js';
+import { scheduleColumns } from '../src/circuit/Flatten.js';
+import { evaluate } from '../src/sim/Evaluator.js';
+
+// Seed the GateRegistry (main.js is the sole importer of gates/).
+import '../src/main.js';
 
 /** Collect all of stdin as a single UTF-8 string. */
 function readStdin() {

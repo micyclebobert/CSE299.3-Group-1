@@ -1,19 +1,24 @@
-import { Complex } from './Complex.js';
-import { Matrix } from './Matrix.js';
+// =============================================================================
+// src/gates/basis.js
+// -----------------------------------------------------------------------------
+// Basis gates — fixed, non-parameterized single-qubit gates.
+//
+// Per CONVENTIONS.md §5:
+//   - Each 2x2 gate is defined once with Complex/Matrix at definition time.
+//   - The canonical hot-path form is a flat 8-element number tuple:
+//       [g00re, g00im, g01re, g01im, g10re, g10im, g11re, g11im]
+//   - Kernel signatures take flat tuples, never Matrix objects.
+//
+// All gates here are unitary by construction.
+//
+// Gate Isolation: gates/ is imported exclusively by main.js. This module
+// imports only core/ (Complex, Matrix).
+// =============================================================================
+
+import { Complex } from '../core/Complex.js';
+import { Matrix } from '../core/Matrix.js';
 
 const invSqrt2 = 1 / Math.sqrt(2);
-
-/**
- * Basis gates — fixed, non-parameterized single-qubit gates.
- *
- * Per CONVENTIONS.md §5:
- *   - Each 2x2 gate is defined once with Complex/Matrix at definition time.
- *   - The canonical hot-path form is a flat 8-element number tuple:
- *       [g00re, g00im, g01re, g01im, g10re, g10im, g11re, g11im]
- *   - Kernel signatures take flat tuples, never Matrix objects.
- *
- * All gates here are unitary by construction.
- */
 
 /* ------------------------------------------------------------------ */
 /*  Flat tuples — canonical kernel form (§5)                          */

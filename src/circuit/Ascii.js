@@ -125,3 +125,18 @@ export function parseAscii(diagram) {
 
   return new Circuit({ numQubits, columns });
 }
+
+/**
+ * Primary export matching the base filename (Ascii.js -> Ascii).
+ * Static facade over parseAscii.
+ */
+export class Ascii {
+  /**
+   * Parse an ASCII circuit diagram into a Circuit.
+   * @param {string} diagram
+   * @returns {Circuit}
+   */
+  static parseAscii(diagram) {
+    return parseAscii(diagram);
+  }
+}

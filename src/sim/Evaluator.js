@@ -7,16 +7,16 @@
 //
 // Fast single-buffer execution from virtual column 0 to end with zero
 // intermediate allocations. Applies each ExecutionColumn in order using the
-// bare-function hot-path kernels in src/core/kernel.js, resolving gate
-// identifiers through src/core/registry.js.
+// bare-function hot-path kernels in src/sim/kernel.js, resolving gate
+// identifiers through src/circuit/GateRegistry.js.
 //
 // Layering: imports core/ and circuit/ only. No DOM, no gates/ folder import
-// (gates are resolved via the registry injected from core).
+// (gates are resolved via the registry injected from circuit/).
 // =============================================================================
 
 import { StateVector } from '../core/StateVector.js';
-import * as Kernel from '../core/kernel.js';
-import { getGate } from '../core/registry.js';
+import * as Kernel from './kernel.js';
+import { getGate } from '../circuit/GateRegistry.js';
 
 /**
  * Execute a flattened schedule against an |0...0> initial state.
@@ -74,6 +74,20 @@ export function evaluate(schedule, numQubits) {
           throw new Error(`CZ requires exactly one control, got ${controls.length}`);
         }
         Kernel.applyCz(re, im, n, controls[0].row, target);
+      } else if (gateId === 'SWAP') {
+        if (controls.length !== 0) {
+          throw new Error(`SWAP requires no controls, got ${controls.length}`);
+        }
+        const target2 = instr.target2;
+        if (!Number.isInteger(target2) || target2 < 0) {
+          throw new Error(`SWAP requires a second target qubit row (target2)`);
+        }
+        Kernel.applySwap(re, im, n, target, target2);
+      } else if (gateId === 'Toffoli') {
+        if (controls.length !== 2) {
+          throw new Error(`Toffoli requires exactly two controls, got ${controls.length}`);
+        }
+        Kernel.applyToffoli(re, im, n, controls[0].row, controls[1].row, target);
       } else {
         const gateFlat = getGate(gateId, instr.thetaRad);
         if (!gateFlat) {
@@ -93,4 +107,20 @@ export function evaluate(schedule, numQubits) {
   }
 
   return state;
+}
+
+/**
+ * Primary export matching the base filename (Evaluator.js -> Evaluator).
+ * Static facade over evaluate.
+ */
+export class Evaluator {
+  /**
+   * Execute a flattened schedule against an |0...0> initial state.
+   * @param {ExecutionColumn[]} schedule
+   * @param {number} numQubits
+   * @returns {StateVector}
+   */
+  static evaluate(schedule, numQubits) {
+    return evaluate(schedule, numQubits);
+  }
 }

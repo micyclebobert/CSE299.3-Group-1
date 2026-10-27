@@ -154,3 +154,27 @@ export function scheduleColumns(instructions) {
 
   return executionColumns;
 }
+
+/**
+ * Primary export matching the base filename (Flatten.js -> Flatten).
+ * Static facade over flattenCircuit/scheduleColumns.
+ */
+export class Flatten {
+  /**
+   * Flatten a Circuit into a 1D array of canonical Instruction objects.
+   * @param {Circuit} circuit
+   * @returns {Instruction[]}
+   */
+  static flattenCircuit(circuit) {
+    return flattenCircuit(circuit);
+  }
+
+  /**
+   * Group flat instructions sharing the same virtualColumn into execution batches.
+   * @param {Instruction[]} instructions
+   * @returns {ExecutionColumn[]}
+   */
+  static scheduleColumns(instructions) {
+    return scheduleColumns(instructions);
+  }
+}

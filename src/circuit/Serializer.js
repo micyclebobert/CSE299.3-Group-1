@@ -231,3 +231,27 @@ function parseControlDescriptor(c, where, idx) {
 
 
 export { SerializerError };
+
+/**
+ * Primary export matching the base filename (Serializer.js -> Serializer).
+ * Static facade over the toJson/fromJson functions.
+ */
+export class Serializer {
+  /**
+   * Serialize a Circuit to canonical v1 JSON.
+   * @param {Circuit} circuit
+   * @returns {string}
+   */
+  static toJson(circuit) {
+    return toJson(circuit);
+  }
+
+  /**
+   * Parse canonical v1 JSON into a Circuit.
+   * @param {string} text
+   * @returns {Circuit}
+   */
+  static fromJson(text) {
+    return fromJson(text);
+  }
+}

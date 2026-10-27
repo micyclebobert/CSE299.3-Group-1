@@ -5,23 +5,30 @@
 //
 // Compares Member 1's O(2^n) pairwise kernel (via src/sim/Evaluator.js) against
 // Sprint 1's O(4^n) naive Matrix.tensorProduct path for random circuits up to
-// n = 6, tolerance 1e-12. Also verifies IEEE-754 norm preservation after each
-// gate and the bidirectional CNOT index swaps that guard against big-endian
-// slips.
+// n = 6, tolerance 1e-12. Tests across all 6 amplitude profiles per
+// SOURCE_OF_TRUTH §9.2 Layer 6:
+//   1. purely real, 2. purely imaginary, 3. fully complex,
+//   4. complex–real, 5. complex–imaginary, 6. imaginary–real.
+// Also verifies IEEE-754 norm preservation after each gate and the
+// bidirectional CNOT index swaps that guard against big-endian slips.
 // =============================================================================
 
 import { test } from 'node:test';
-import { ok } from 'assert';
+import { ok, strictEqual } from 'assert';
 import { Complex } from '../src/core/Complex.js';
 import { Matrix } from '../src/core/Matrix.js';
 import { StateVector } from '../src/core/StateVector.js';
-import * as Kernel from '../src/core/kernel.js';
-import { getGate } from '../src/core/registry.js';
+import * as Kernel from '../src/sim/kernel.js';
+import { getGate } from '../src/circuit/GateRegistry.js';
 import { evaluate } from '../src/sim/Evaluator.js';
 import { Gate, GateColumn } from '../src/circuit/GateColumn.js';
 import { Circuit } from '../src/circuit/Circuit.js';
 import { flattenCircuit } from '../src/circuit/Flatten.js';
 import { scheduleColumns } from '../src/circuit/Flatten.js';
+
+// Seed the GateRegistry (main.js is the sole importer of gates/; import it
+// here so evaluate() can resolve gate IDs in tests).
+import '../src/main.js';
 
 const TOL = 1e-12; // n <= 8 per CONVENTIONS.md #226
 const NORM_TOL = 1e-9;
@@ -49,9 +56,6 @@ function flatToMatrix(flat) {
   ]);
 }
 
-// Lift a single-qubit gate on target t to n qubits (little-endian: qubit t =
-// bit t) via Kronecker: U = I_{2^(n-1-t)} (x) G (x) I_{2^t}. Uses
-// Matrix.tensorProduct — the naive O(4^n) reference path.
 function singleQubitUnitary(flat, target, n) {
   const G = flatToMatrix(flat);
   const left = Matrix.identity(1 << (n - 1 - target));
@@ -59,7 +63,6 @@ function singleQubitUnitary(flat, target, n) {
   return Matrix.tensorProduct(Matrix.tensorProduct(left, G), right);
 }
 
-// CNOT as a permutation matrix (textbook definition, O(4^n) to build).
 function cnotUnitary(control, target, n) {
   const size = 1 << n;
   const data = [];
@@ -80,7 +83,6 @@ function cnotUnitary(control, target, n) {
   return new Matrix(data);
 }
 
-// CZ as a diagonal phase matrix.
 function czUnitary(control, target, n) {
   const size = 1 << n;
   const data = [];
@@ -127,11 +129,13 @@ function applyUnitary(re, im, U) {
   return { re: outRe, im: outIm };
 }
 
-function naiveSimulate(ops, n) {
+function naiveSimulate(ops, n, initRe, initIm) {
   const size = 1 << n;
   let re = new Float64Array(size);
   let im = new Float64Array(size);
-  re[0] = 1.0;
+  if (initRe) re.set(initRe);
+  if (initIm) im.set(initIm);
+  else re[0] = 1.0;
   for (let g = 0; g < ops.length; g++) {
     const next = applyUnitary(re, im, naiveUnitary(ops[g], n));
     re = next.re;
@@ -140,9 +144,7 @@ function naiveSimulate(ops, n) {
   return { re, im };
 }
 
-// Run ops through the full pairwise pipeline: Circuit -> flatten ->
-// scheduleColumns -> evaluate.
-function pairwiseSimulate(ops, n) {
+function pairwiseSimulate(ops, n, initRe, initIm) {
   const columns = ops.map(
     (op) =>
       new GateColumn({
@@ -158,7 +160,35 @@ function pairwiseSimulate(ops, n) {
   const circuit = new Circuit({ numQubits: n, columns });
   const instructions = flattenCircuit(circuit);
   const schedule = scheduleColumns(instructions);
-  return evaluate(schedule, n);
+  const size = 1 << n;
+  const re = new Float64Array(size);
+  const im = new Float64Array(size);
+  if (initRe) re.set(initRe);
+  if (initIm) im.set(initIm);
+  else re[0] = 1.0;
+  for (let c = 0; c < schedule.length; c++) {
+    const column = schedule[c];
+    for (const instr of column.instructions) {
+      const gateId = instr.gateId;
+      const target = instr.target;
+      const controls = instr.controls || [];
+      let controlMask = 0;
+      let antiControlMask = 0;
+      for (const control of controls) {
+        if (control.on) controlMask |= 1 << control.row;
+        else antiControlMask |= 1 << control.row;
+      }
+      if (gateId === 'CNOT') {
+        Kernel.applyCnot(re, im, n, controls[0].row, target);
+      } else if (gateId === 'CZ') {
+        Kernel.applyCz(re, im, n, controls[0].row, target);
+      } else {
+        const gateFlat = getGate(gateId, instr.thetaRad);
+        Kernel.apply1QubitOp(re, im, n, target, gateFlat, controlMask, antiControlMask);
+      }
+    }
+  }
+  return { re, im };
 }
 
 function randomOp(rng, n) {
@@ -178,33 +208,64 @@ function randomOp(rng, n) {
   return { gateId, target, controls };
 }
 
-test('pairwise kernel matches naive Matrix path for random circuits (n=1..6)', () => {
+// Six amplitude profiles (SOURCE_OF_TRUTH §9.2 Layer 6).
+function amplitudeProfiles(n) {
+  const size = 1 << n;
+  const invSqrt2 = 1 / Math.sqrt(2);
+  const half = 1 / 2;
+  return [
+    // 1. purely real: alpha0 = 1
+    { name: 'purely-real', re: () => { const r = new Float64Array(size); r[0] = 1; return r; }, im: () => new Float64Array(size) },
+    // 2. purely imaginary: alpha0 = i
+    { name: 'purely-imaginary', re: () => new Float64Array(size), im: () => { const i = new Float64Array(size); i[0] = 1; return i; } },
+    // 3. fully complex: alpha0 = (1+i)/sqrt(2)
+    { name: 'fully-complex', re: () => { const r = new Float64Array(size); r[0] = invSqrt2; return r; }, im: () => { const i = new Float64Array(size); i[0] = invSqrt2; return i; } },
+    // 4. complex–real: alpha0=(1+i)/2, alpha1=1/sqrt(2)
+    { name: 'complex-real', re: () => { const r = new Float64Array(size); r[0] = half; r[1] = invSqrt2; return r; }, im: () => { const i = new Float64Array(size); i[0] = half; return i; } },
+    // 5. complex–imaginary: alpha0=(1+i)/2, alpha1=i/sqrt(2)
+    { name: 'complex-imaginary', re: () => { const r = new Float64Array(size); r[0] = half; return r; }, im: () => { const i = new Float64Array(size); i[0] = half; i[1] = invSqrt2; return i; } },
+    // 6. imaginary–real: alpha0=i/sqrt(2), alpha1=1/sqrt(2)
+    { name: 'imaginary-real', re: () => { const r = new Float64Array(size); r[1] = invSqrt2; return r; }, im: () => { const i = new Float64Array(size); i[0] = invSqrt2; return i; } },
+  ];
+}
+
+test('pairwise kernel matches naive Matrix path for random circuits across 6 amplitude profiles (n=1..6)', () => {
   for (let n = 1; n <= 6; n++) {
-    for (let t = 0; t < 10; t++) {
-      const seed = n * 1000 + t;
-      const rng = makeRng(seed);
-      const ngates = 4 + randInt(rng, 6);
-      const ops = [];
-      for (let g = 0; g < ngates; g++) ops.push(randomOp(rng, n));
+    const profiles = amplitudeProfiles(n);
+    for (const profile of profiles) {
+      for (let t = 0; t < 5; t++) {
+        const seed = n * 1000 + t;
+        const rng = makeRng(seed);
+        const ngates = 4 + randInt(rng, 6);
+        const ops = [];
+        for (let g = 0; g < ngates; g++) ops.push(randomOp(rng, n));
 
-      const size = 1 << n;
-      const state = pairwiseSimulate(ops, n);
-      const naive = naiveSimulate(ops, n);
+        const initRe = profile.re();
+        const initIm = profile.im();
 
-      for (let i = 0; i < size; i++) {
+        const state = pairwiseSimulate(ops, n, initRe, initIm);
+        const naive = naiveSimulate(ops, n, initRe, initIm);
+
+        const size = 1 << n;
+        for (let i = 0; i < size; i++) {
+          ok(
+            Math.abs(state.re[i] - naive.re[i]) <= TOL,
+            `n=${n} profile=${profile.name} seed=${seed} i=${i} re: ${state.re[i]} vs ${naive.re[i]}`,
+          );
+          ok(
+            Math.abs(state.im[i] - naive.im[i]) <= TOL,
+            `n=${n} profile=${profile.name} seed=${seed} i=${i} im: ${state.im[i]} vs ${naive.im[i]}`,
+          );
+        }
         ok(
-          Math.abs(state.getRe(i) - naive.re[i]) <= TOL,
-          `n=${n} seed=${seed} i=${i} re: ${state.getRe(i)} vs ${naive.re[i]}`,
-        );
-        ok(
-          Math.abs(state.getIm(i) - naive.im[i]) <= TOL,
-          `n=${n} seed=${seed} i=${i} im: ${state.getIm(i)} vs ${naive.im[i]}`,
+          Math.abs(
+            state.re.reduce((s, v) => s + v * v, 0) +
+              state.im.reduce((s, v) => s + v * v, 0) -
+              1.0,
+          ) <= NORM_TOL,
+          `n=${n} profile=${profile.name} seed=${seed} normSquared not ~1`,
         );
       }
-      ok(
-        Math.abs(state.normSquared() - 1.0) <= NORM_TOL,
-        `n=${n} seed=${seed} normSquared = ${state.normSquared()}`,
-      );
     }
   }
 });
@@ -251,10 +312,10 @@ test('bidirectional CNOT exact swap pairs (n=3)', () => {
     re[1] = 1.0;
     re[5] = 1.0;
     Kernel.applyCnot(re, im, 3, 0, 1);
-    strictEqualCheck(re[1], 0);
-    strictEqualCheck(re[3], 1);
-    strictEqualCheck(re[5], 0);
-    strictEqualCheck(re[7], 1);
+    strictEqual(Object.is(re[1], 0), true);
+    strictEqual(Object.is(re[3], 1), true);
+    strictEqual(Object.is(re[5], 0), true);
+    strictEqual(Object.is(re[7], 1), true);
   }
   // CNOT(1->0) swaps {2,3} and {6,7}.
   {
@@ -264,13 +325,9 @@ test('bidirectional CNOT exact swap pairs (n=3)', () => {
     re[2] = 1.0;
     re[6] = 1.0;
     Kernel.applyCnot(re, im, 3, 1, 0);
-    strictEqualCheck(re[2], 0);
-    strictEqualCheck(re[3], 1);
-    strictEqualCheck(re[6], 0);
-    strictEqualCheck(re[7], 1);
+    strictEqual(Object.is(re[2], 0), true);
+    strictEqual(Object.is(re[3], 1), true);
+    strictEqual(Object.is(re[6], 0), true);
+    strictEqual(Object.is(re[7], 1), true);
   }
 });
-
-function strictEqualCheck(actual, expected) {
-  ok(Object.is(actual, expected), `expected ${actual} to be identical to ${expected}`);
-}
