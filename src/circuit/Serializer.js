@@ -76,6 +76,12 @@ function gateToJson(gate) {
     throw new TypeError('Every gate must be a Gate instance');
   }
   const obj = { gate: gate.name, target: gate.target };
+  if (gate.target2 !== undefined) {
+    obj.target2 = gate.target2;
+  }
+  if (gate.thetaRad !== undefined) {
+    obj.thetaRad = gate.thetaRad;
+  }
   if (gate.controls.length > 0) {
     // Controls always emitted in array order, each as { row, on }.
     obj.controls = gate.controls.map((c) => ({ row: c.row, on: c.on }));
@@ -189,16 +195,36 @@ function parseGateDescriptor(g, colIdx, gateIdx) {
   }
 
   // Reject unexpected extra keys — canonical format is strict on purpose.
-  const allowed = new Set(['gate', 'target', 'controls']);
+  const allowed = new Set(['gate', 'target', 'target2', 'thetaRad', 'controls']);
   for (const k of Object.keys(g)) {
     if (!allowed.has(k)) {
       throw new SerializerError(
-        `Gate at ${where} has unexpected field '${k}' (allowed: gate, target, controls)`,
+        `Gate at ${where} has unexpected field '${k}' (allowed: gate, target, target2, thetaRad, controls)`,
       );
     }
   }
 
-  return new Gate({ name: g.gate, target: g.target, controls });
+  // target2 is required for two-target gates (e.g. SWAP); thetaRad for parameterized gates.
+  let target2 = undefined;
+  if (g.target2 !== undefined) {
+    if (!Number.isInteger(g.target2) || g.target2 < 0) {
+      throw new SerializerError(
+        `Gate at ${where} has invalid 'target2' field (must be a non-negative integer): ${JSON.stringify(g.target2)}`,
+      );
+    }
+    target2 = g.target2;
+  }
+  let thetaRad = undefined;
+  if (g.thetaRad !== undefined) {
+    if (typeof g.thetaRad !== 'number') {
+      throw new SerializerError(
+        `Gate at ${where} has invalid 'thetaRad' field (must be a number): ${JSON.stringify(g.thetaRad)}`,
+      );
+    }
+    thetaRad = g.thetaRad;
+  }
+
+  return new Gate({ name: g.gate, target: g.target, target2, thetaRad, controls });
 }
 
 function parseControlDescriptor(c, where, idx) {

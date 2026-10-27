@@ -82,6 +82,7 @@ export function flattenCircuit(circuit) {
           instructions.push({
             gateId: subInstr.gateId,
             target: subInstr.target,
+            target2: subInstr.target2,
             controls: [...subInstr.controls],
             thetaRad: subInstr.thetaRad,
             column: colIdx,
