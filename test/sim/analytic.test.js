@@ -155,3 +155,21 @@ test('expectation(function) returns the function', () => {
 test('expectation throws on non-function non-null', () => {
   throws(() => expectation(42), TypeError);
 });
+
+test('ghzState throws on invalid n', () => {
+  throws(() => ghzState(0), TypeError);
+  throws(() => ghzState(-1), TypeError);
+  throws(() => ghzState(2.5), TypeError);
+});
+
+test('qftState throws on invalid n', () => {
+  throws(() => qftState(0), TypeError);
+  throws(() => qftState(-1), TypeError);
+  throws(() => qftState(2.5), TypeError);
+});
+
+test('qftState throws on invalid k', () => {
+  throws(() => qftState(2, -1), RangeError);
+  throws(() => qftState(2, 4), RangeError);
+  throws(() => qftState(2, 2.5), RangeError);
+});

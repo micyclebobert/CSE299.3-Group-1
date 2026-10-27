@@ -33,3 +33,36 @@ test('parseAscii empty row still yields circuit', () => {
   strictEqual(circuit.numQubits, 2);
   strictEqual(circuit.columns.length, 0);
 });
+
+test('parseAscii attaches control dots to gate on different row', () => {
+  const diagram = '.X\nX-';
+  const circuit = parseAscii(diagram);
+  strictEqual(circuit.columns.length, 2);
+  const col0 = circuit.columns[0].gates[0];
+  strictEqual(col0.name, 'X');
+  strictEqual(col0.target, 1);
+  strictEqual(col0.controls.length, 1);
+  strictEqual(col0.controls[0].row, 0);
+  strictEqual(col0.controls[0].on, true);
+});
+
+test('parseAscii skips vertical control line (|)', () => {
+  const diagram = 'X|-|-\n-|-X';
+  const circuit = parseAscii(diagram);
+  strictEqual(circuit.numQubits, 2);
+  strictEqual(circuit.columns.length, 2);
+  strictEqual(circuit.columns[0].gates[0].name, 'X');
+  strictEqual(circuit.columns[0].gates[0].target, 0);
+  strictEqual(circuit.columns[1].gates[0].name, 'X');
+  strictEqual(circuit.columns[1].gates[0].target, 1);
+});
+
+test('parseAscii recognizes single-letter gate labels case-insensitively', () => {
+  const diagram = 'x-\n-h';
+  const circuit = parseAscii(diagram);
+  strictEqual(circuit.columns.length, 2);
+  strictEqual(circuit.columns[0].gates[0].name, 'X');
+  strictEqual(circuit.columns[0].gates[0].target, 0);
+  strictEqual(circuit.columns[1].gates[0].name, 'H');
+  strictEqual(circuit.columns[1].gates[0].target, 1);
+});

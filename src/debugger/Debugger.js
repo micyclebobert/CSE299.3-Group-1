@@ -470,4 +470,3 @@ export class Debugger {
 /**
  * Primary export matching the base filename (Debugger.js -> Debugger).
  */
-export default Debugger;

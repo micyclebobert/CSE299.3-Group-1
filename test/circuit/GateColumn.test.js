@@ -173,3 +173,86 @@ test('GateColumn isEqualTo returns false when not a GateColumn instance', () => 
   strictEqual(column.isEqualTo('not a column'), false);
   strictEqual(column.isEqualTo(null), false);
 });
+
+test('GateColumn throws when two gates share the same target row (intra-column disjointness)', () => {
+  let threw = false;
+  try {
+    new GateColumn({ gates: [
+      new Gate({ name: 'H', target: 0 }),
+      new Gate({ name: 'X', target: 0 }),
+    ] });
+  } catch (e) { threw = e instanceof Error; }
+  strictEqual(threw, true);
+});
+
+test('GateColumn throws when gates share a row via target and control', () => {
+  let threw = false;
+  try {
+    new GateColumn({ gates: [
+      new Gate({ name: 'X', target: 0, controls: [{ row: 1, on: true }] }),
+      new Gate({ name: 'Z', target: 1, controls: [{ row: 0, on: true }] }),
+    ] });
+  } catch (e) { threw = e instanceof Error; }
+  strictEqual(threw, true);
+});
+
+test('Gate target2 getter returns target2 when set', () => {
+  const gate = new Gate({ name: 'SWAP', target: 0, target2: 1 });
+  strictEqual(gate.target2, 1);
+});
+
+test('Gate target2 is undefined when not set', () => {
+  const gate = new Gate({ name: 'H', target: 0 });
+  strictEqual(gate.target2, undefined);
+});
+
+test('Gate constructor throws when target2 equals target', () => {
+  let threw = false;
+  try { new Gate({ name: 'SWAP', target: 0, target2: 0 }); } catch { threw = true; }
+  strictEqual(threw, true);
+});
+
+test('Gate constructor throws on negative target2', () => {
+  let threw = false;
+  try { new Gate({ name: 'SWAP', target: 0, target2: -1 }); } catch (e) { threw = e instanceof TypeError; }
+  strictEqual(threw, true);
+});
+
+test('Gate constructor throws on non-integer target2', () => {
+  let threw = false;
+  try { new Gate({ name: 'SWAP', target: 0, target2: 1.5 }); } catch (e) { threw = e instanceof TypeError; }
+  strictEqual(threw, true);
+});
+
+test('Gate isEqualTo returns false when target2 differs', () => {
+  const gate1 = new Gate({ name: 'SWAP', target: 0, target2: 1 });
+  const gate2 = new Gate({ name: 'SWAP', target: 0, target2: 2 });
+  strictEqual(gate1.isEqualTo(gate2), false);
+});
+
+test('Gate toDescriptor includes target2 when set', () => {
+  const gate = new Gate({ name: 'SWAP', target: 0, target2: 1 });
+  const desc = gate.toDescriptor();
+  strictEqual(desc.target2, 1);
+});
+
+test('Gate toDescriptor omits target2 when undefined', () => {
+  const gate = new Gate({ name: 'H', target: 0 });
+  const desc = gate.toDescriptor();
+  strictEqual('target2' in desc, false);
+});
+
+test('GateColumn defensive copy: original gates array not reflected in column', () => {
+  const gates = [new Gate({ name: 'H', target: 0 })];
+  const column = new GateColumn({ gates });
+  gates.push(new Gate({ name: 'X', target: 1 }));
+  strictEqual(column.gates.length, 1);
+  strictEqual(column.gates[0].name, 'H');
+});
+
+test('GateColumn gates getter returns frozen array', () => {
+  const column = new GateColumn({ gates: [new Gate({ name: 'H', target: 0 })] });
+  let threw = false;
+  try { column.gates.push(new Gate({ name: 'X', target: 1 })); } catch { threw = true; }
+  strictEqual(threw, true);
+});

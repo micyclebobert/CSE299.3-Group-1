@@ -5,7 +5,7 @@
 // =============================================================================
 
 import { test } from 'node:test';
-import { ok, strictEqual } from 'assert';
+import { ok, strictEqual, throws } from 'assert';
 import { evaluate } from '../../src/sim/Evaluator.js';
 import { flattenCircuit } from '../../src/circuit/Flatten.js';
 import { scheduleColumns } from '../../src/circuit/Flatten.js';
@@ -32,6 +32,7 @@ function circuitFromOps(ops, n) {
             name: op.gateId,
             target: op.target,
             controls: op.controls || [],
+            thetaRad: op.theta,
           }),
         ],
       }),
@@ -60,29 +61,25 @@ test('evaluate throws on unknown gate', () => {
   const circuit = circuitFromOps([{ gateId: 'Nope', target: 0, controls: [] }], 1);
   const instructions = flattenCircuit(circuit);
   const schedule = scheduleColumns(instructions);
-  let threw = false;
-  try { evaluate(schedule, 1); } catch { threw = true; }
-  strictEqual(threw, true);
+  throws(() => evaluate(schedule, 1), /Unknown gate: Nope/);
 });
 
 test('evaluate CNOT(1->0) swaps {2,3} and {6,7} via full pipeline (n=3)', () => {
   // Prepare |010> = index 2 (little-endian: row1=1), then CNOT(1->0) swaps 2<->3.
-  const state = new StateVector(3);
-  const re = state.getRawRe();
-  re[0] = 0.0;
-  re[2] = 1.0;
-  const col1 = new GateColumn({
-    gates: [new Gate({ name: 'CNOT', target: 0, controls: [{ row: 1, on: true }] })],
-  });
-  const circuit2 = new Circuit({ numQubits: 3, columns: [col1] });
-  const instrs2 = flattenCircuit(circuit2);
-  const sched2 = scheduleColumns(instrs2);
-  // Re-evaluate from the prepared state by running kernels directly.
-  const re2 = state.getRawRe();
-  const im2 = state.getRawIm();
-  Kernel.applyCnot(re2, im2, 3, 1, 0);
-  strictEqual(re2[2], 0);
-  strictEqual(re2[3], 1);
+  const circuit = circuitFromOps(
+    [
+      { gateId: 'X', target: 1, controls: [] },
+      { gateId: 'CNOT', target: 0, controls: [{ row: 1, on: true }] },
+    ],
+    3,
+  );
+  const instructions = flattenCircuit(circuit);
+  const schedule = scheduleColumns(instructions);
+  const state = evaluate(schedule, 3);
+  strictEqual(state.getRe(2), 0);
+  strictEqual(state.getRe(3), 1);
+  strictEqual(state.getRe(6), 0);
+  strictEqual(state.getRe(7), 0);
 });
 
 test('evaluate preserves norm', () => {
@@ -101,5 +98,76 @@ test('evaluate preserves norm', () => {
   const instructions = flattenCircuit(circuit);
   const schedule = scheduleColumns(instructions);
   const state = evaluate(schedule, 5);
-  ok(Math.abs(state.normSquared() - 1.0) <= 1e-9);
+  ok(Math.abs(state.normSquared() - 1.0) <= 1e-12);
+});
+
+test('evaluate throws on non-array schedule', () => {
+  const circuit = circuitFromOps([{ gateId: 'H', target: 0 }], 2);
+  const schedule = scheduleColumns(flattenCircuit(circuit));
+  throws(() => evaluate('not a schedule', 2), TypeError);
+  throws(() => evaluate(null, 2), TypeError);
+  throws(() => evaluate({ length: 0 }, 2), TypeError);
+  strictEqual(evaluate(schedule, 2) instanceof StateVector, true);
+});
+
+test('evaluate throws on invalid numQubits', () => {
+  const circuit = circuitFromOps([{ gateId: 'H', target: 0 }], 2);
+  const schedule = scheduleColumns(flattenCircuit(circuit));
+  throws(() => evaluate(schedule, 0), /positive integer/);
+  throws(() => evaluate(schedule, -1), /positive integer/);
+  throws(() => evaluate(schedule, 2.5), /positive integer/);
+});
+
+test('evaluate Rx(pi/2) on |0> through pipeline', () => {
+  const circuit = circuitFromOps([{ gateId: 'Rx', target: 0, theta: Math.PI / 2, controls: [] }], 1);
+  const state = evaluate(scheduleColumns(flattenCircuit(circuit)), 1);
+  approx(state.getRe(0), INV_SQRT2);
+  strictEqual(state.getRe(1), 0);
+  strictEqual(state.getIm(0), 0);
+  approx(state.getIm(1), -INV_SQRT2);
+});
+
+test('evaluate Ry(pi/2) on |0> through pipeline', () => {
+  const circuit = circuitFromOps([{ gateId: 'Ry', target: 0, theta: Math.PI / 2, controls: [] }], 1);
+  const state = evaluate(scheduleColumns(flattenCircuit(circuit)), 1);
+  approx(state.getRe(0), INV_SQRT2);
+  approx(state.getRe(1), INV_SQRT2);
+  strictEqual(state.getIm(0), 0);
+  strictEqual(state.getIm(1), 0);
+});
+
+test('evaluate Rz(pi) on |0> gives -i phase through pipeline', () => {
+  const circuit = circuitFromOps([{ gateId: 'Rz', target: 0, theta: Math.PI, controls: [] }], 1);
+  const state = evaluate(scheduleColumns(flattenCircuit(circuit)), 1);
+  approx(state.getRe(0), 0);
+  approx(state.getIm(0), -1);
+});
+
+test('evaluate Cu1(pi/2) phases only |11> through pipeline', () => {
+  const circuit = circuitFromOps(
+    [
+      { gateId: 'X', target: 0, controls: [] },
+      { gateId: 'X', target: 1, controls: [] },
+      { gateId: 'Cu1', target: 1, controls: [{ row: 0, on: true }], theta: Math.PI / 2 },
+    ],
+    2,
+  );
+  const state = evaluate(scheduleColumns(flattenCircuit(circuit)), 2);
+  approx(state.getRe(3), 0);
+  strictEqual(state.getIm(3), 1);
+});
+
+test('evaluate anti-control (on===false) leaves target bit-identical when control missed', () => {
+  const circuit = circuitFromOps(
+    [
+      { gateId: 'X', target: 1, controls: [] },
+      { gateId: 'X', target: 0, controls: [{ row: 1, on: false }] },
+    ],
+    2,
+  );
+  const state = evaluate(scheduleColumns(flattenCircuit(circuit)), 2);
+  strictEqual(state.getRe(2), 1);
+  strictEqual(state.getRe(0), 0);
+  strictEqual(state.getRe(1), 0);
+  strictEqual(state.getRe(3), 0);
 });

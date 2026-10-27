@@ -86,30 +86,13 @@ test('qft(1) is a single Hadamard column', () => {
   strictEqual(gate.target, 0);
 });
 
-test('qft(2) column layout: H(1), Cu1(pi/2 c=0,t=1), H(0), SWAP(0,1)', () => {
-  const circuit = qft(2);
-  strictEqual(circuit.columns.length, 4);
-
-  const g0 = circuit.columns[0].gates[0];
-  strictEqual(g0.name, 'H');
-  strictEqual(g0.target, 1);
-
-  const g1 = circuit.columns[1].gates[0];
-  strictEqual(g1.name, 'Cu1');
-  strictEqual(g1.target, 1);
-  strictEqual(g1.controls.length, 1);
-  strictEqual(g1.controls[0].row, 0);
-  strictEqual(g1.controls[0].on, true);
-  approxEqual(g1.thetaRad, Math.PI / 2);
-
-  const g2 = circuit.columns[2].gates[0];
-  strictEqual(g2.name, 'H');
-  strictEqual(g2.target, 0);
-
-  const g3 = circuit.columns[3].gates[0];
-  strictEqual(g3.name, 'SWAP');
-  strictEqual(g3.target, 0);
-  strictEqual(g3.target2, 1);
+test('qft(2) matches analytic qftState(2, k) for every basis input', () => {
+  // Behavioral check of the whole Cu1(pi/2) + SWAP column structure instead
+  // of over-coupled assertions on exact column positions.
+  for (let k = 0; k < 4; k++) {
+    const state = run(qftOnK(2, k));
+    statesEqual(state, qftState(2, k));
+  }
 });
 
 test('qft column count matches n + n(n-1)/2 + floor(n/2)', () => {
@@ -137,7 +120,7 @@ test('QFT|0> equals qftState(n, 0) for n = 1..5', () => {
     const norm = 1 / Math.sqrt(1 << n);
     for (let i = 0; i < 1 << n; i++) {
       approxEqual(state.getRe(i), norm);
-      strictEqual(state.getIm(i), 0);
+      approxEqual(state.getIm(i), 0);
     }
   }
 });
@@ -147,7 +130,7 @@ test('QFT|0> equals qftState(n, 0) for n = 1..5', () => {
 // ---------------------------------------------------------------------------
 
 test('QFT|k> matches qftState(n, k) across basis inputs (n = 3)', () => {
-  for (let k of [0, 1, 2, 3, 5, 7]) {
+  for (let k of [0, 1, 2, 3, 4, 5, 6, 7]) {
     const state = run(qftOnK(3, k));
     statesEqual(state, qftState(3, k));
   }

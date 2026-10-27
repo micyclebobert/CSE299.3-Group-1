@@ -325,3 +325,43 @@ test('StepTrace seek() does not corrupt cached snapshots (Dense)', () => {
   approx(trace.currentState.getRe(0), INV_SQRT2);
   approx(trace.currentState.getRe(3), INV_SQRT2);
 });
+
+test('StepTrace next() beyond final step throws', () => {
+  const trace = buildTrace(bellCircuit(2));
+  trace.next();
+  trace.next();
+  throws(() => trace.next(), Error);
+});
+
+test('StepTrace verify() throws on non-function expectation', () => {
+  const trace = buildTrace(bellCircuit(2));
+  throws(() => trace.verify(42), TypeError);
+  throws(() => trace.verify('not a function'), TypeError);
+  trace.verify(null);
+  trace.verify(() => null);
+});
+
+test('StepTrace verify() detects expectation built for wrong numQubits', () => {
+  const trace = buildTrace(bellCircuit(2));
+  trace.next();
+  trace.next();
+  const result = trace.verify((step, n) => {
+    if (step !== 2) return null;
+    return ghzState(3);
+  });
+  strictEqual(result.ok, false);
+  ok(result.failures.length > 0);
+});
+
+test('StepTrace seek() scrubbing preserves bit-identical untouched amplitudes', () => {
+  const trace = buildTrace(bellCircuit(2));
+  trace.next();
+  trace.next();
+  const before = [];
+  for (let i = 0; i < 4; i++) before[i] = trace.currentState.getRe(i);
+  trace.seek(0);
+  trace.seek(2);
+  for (let i = 0; i < 4; i++) {
+    ok(Object.is(trace.currentState.getRe(i), before[i]), `index ${i} bit-identical after scrub`);
+  }
+});

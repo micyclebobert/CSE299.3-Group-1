@@ -84,7 +84,7 @@ test('shor throws on invalid N', () => {
   throws(() => shor(1, 1), TypeError);   // < 3
   throws(() => shor(9, 1), TypeError);   // a <= 1
   throws(() => shor(9, 9), TypeError);   // a >= N
-  throws(() => shor(9, 3), Error);       // gcd(3,9)=3
+  throws(() => shor(9, 3), /gcd/);       // gcd(3,9)=3
   throws(() => shor(2.5, 7), TypeError);
   throws(() => shor('x', 7), TypeError);
 });
@@ -196,4 +196,50 @@ test('Shor(15, 13) peaks at multiples of 64 (r=4)', () => {
 test('shor returns a Circuit instance', () => {
   const circuit = shor(15, 7);
   ok(circuit instanceof Circuit, 'shor should return a Circuit');
+});
+
+test('Shor(21, 2) concentrates near multiples of 2^t/r (r=6 does not divide 2^t)', () => {
+  // ord_21(2) = 6 and 6 does not divide 2^10 = 1024; exercises controlled
+  // modular multiplication beyond the N=15, r | 2^t cases.
+  const t = 10;
+  const circuit = shor(21, 2, { t });
+  const instructions = flattenCircuit(circuit);
+  const schedule = scheduleColumns(instructions);
+  const state = evaluate(schedule, circuit.numQubits);
+  const probs = countProbabilities(state, t, circuit.numQubits);
+  const peaks = [0, 171, 341, 512, 683, 853]; // round(k * 1024 / 6)
+  let peakMass = 0;
+  for (const p of peaks) peakMass += probs[p];
+  ok(peakMass > 0.6, `peak mass should dominate, got ${peakMass}`);
+});
+
+test('Shor(35, 2) concentrates near multiples of 2^t/r (r=12 does not divide 2^t)', () => {
+  // ord_35(2) = 12 and 12 does not divide 2^8 = 256.
+  const t = 8;
+  const circuit = shor(35, 2, { t });
+  const instructions = flattenCircuit(circuit);
+  const schedule = scheduleColumns(instructions);
+  const state = evaluate(schedule, circuit.numQubits);
+  const probs = countProbabilities(state, t, circuit.numQubits);
+  const peaks = [0, 21, 43, 64, 85, 107, 128, 149, 171, 192, 213, 235]; // round(k * 256 / 12)
+  let peakMass = 0;
+  for (const p of peaks) peakMass += probs[p];
+  ok(peakMass > 0.6, `peak mass should dominate, got ${peakMass}`);
+});
+
+test('evaluate is bit-deterministic: repeated shor runs are bit-identical', () => {
+  const circuit = shor(15, 7, { t: 6 });
+  const instructions = flattenCircuit(circuit);
+  const schedule = scheduleColumns(instructions);
+  const a = evaluate(schedule, circuit.numQubits);
+  const b = evaluate(schedule, circuit.numQubits);
+  const size = 1 << circuit.numQubits;
+  const ra = a.getRawRe();
+  const ia = a.getRawIm();
+  const rb = b.getRawRe();
+  const ib = b.getRawIm();
+  for (let i = 0; i < size; i++) {
+    ok(Object.is(ra[i], rb[i]), `re[${i}] not bit-identical across runs`);
+    ok(Object.is(ia[i], ib[i]), `im[${i}] not bit-identical across runs`);
+  }
 });

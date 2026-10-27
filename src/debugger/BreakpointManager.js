@@ -278,4 +278,3 @@ export class BreakpointManager {
 /**
  * Primary export matching the base filename (BreakpointManager.js -> BreakpointManager).
  */
-export default BreakpointManager;

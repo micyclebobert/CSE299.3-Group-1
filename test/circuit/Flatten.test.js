@@ -61,3 +61,54 @@ test('scheduleColumns throws on invalid virtualColumn', () => {
   } catch { threw = true; }
   strictEqual(threw, true);
 });
+
+test('flattenCircuit inlines subcircuit gates with virtualColumn shifting', () => {
+  const subCircuit = new Circuit({
+    numQubits: 1,
+    columns: [
+      new GateColumn({ gates: [new Gate({ name: 'H', target: 0 })] }),
+      new GateColumn({ gates: [new Gate({ name: 'X', target: 0 })] }),
+    ],
+  });
+
+  // Gate is frozen; build a subcircuit-carrying gate via the prototype chain.
+  const subGate = Object.create(Gate.prototype);
+  subGate._name = 'Sub';
+  subGate._target = 0;
+  subGate._target2 = undefined;
+  subGate._thetaRad = undefined;
+  subGate._controls = Object.freeze([]);
+  subGate.subcircuit = subCircuit;
+  subGate.subcircuitName = 'TestSub';
+  Object.freeze(subGate);
+
+  const column = new GateColumn({ gates: [subGate] });
+  const circuit = new Circuit({ numQubits: 1, columns: [column] });
+  const instrs = flattenCircuit(circuit);
+
+  strictEqual(instrs.length, 2);
+  strictEqual(instrs[0].gateId, 'H');
+  strictEqual(instrs[0].virtualColumn, 0);
+  strictEqual(instrs[0].column, 0);
+  strictEqual(instrs[0].subcircuit, 'TestSub');
+  strictEqual(instrs[1].gateId, 'X');
+  strictEqual(instrs[1].virtualColumn, 1);
+  strictEqual(instrs[1].column, 0);
+  strictEqual(instrs[1].subcircuit, 'TestSub');
+});
+
+test('scheduleColumns handles non-sequential virtualColumns with gaps', () => {
+  const instrs = [
+    { gateId: 'H', target: 0, controls: [], thetaRad: undefined, column: 0, virtualColumn: 0, subcircuit: undefined },
+    { gateId: 'X', target: 0, controls: [], thetaRad: undefined, column: 0, virtualColumn: 2, subcircuit: undefined },
+    { gateId: 'Z', target: 0, controls: [], thetaRad: undefined, column: 1, virtualColumn: 5, subcircuit: undefined },
+  ];
+  const cols = scheduleColumns(instrs);
+  strictEqual(cols.length, 3);
+  strictEqual(cols[0].virtualColumn, 0);
+  strictEqual(cols[0].instructions.length, 1);
+  strictEqual(cols[1].virtualColumn, 2);
+  strictEqual(cols[1].instructions.length, 1);
+  strictEqual(cols[2].virtualColumn, 5);
+  strictEqual(cols[2].instructions.length, 1);
+});

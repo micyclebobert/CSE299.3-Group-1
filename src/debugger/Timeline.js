@@ -250,4 +250,3 @@ export class Timeline {
 /**
  * Primary export matching the base filename (Timeline.js -> Timeline).
  */
-export default Timeline;

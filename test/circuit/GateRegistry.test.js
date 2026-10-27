@@ -68,6 +68,72 @@ test('listGates returns all registered names', () => {
   ok(names.includes('Rx'));
 });
 
+// NOTE on test-order independence: `seal()` mutates module-level state and is
+// called last in this file (see below). Every other test calls `setup()` at
+// entry to re-register gates, so tests never depend on a sealed or unsealed
+// registry persisting from a prior test. There is no `unseal()` — once sealed,
+// the registry stays sealed for the process lifetime.
+
+test('registerFixedGate throws on non-array flatTuple', () => {
+  setup();
+  let threw = false;
+  try { registerFixedGate('Y', 'not-an-array'); } catch (e) { threw = e instanceof TypeError; }
+  strictEqual(threw, true);
+});
+
+test('registerFixedGate throws on wrong-length flatTuple', () => {
+  setup();
+  let threw = false;
+  try { registerFixedGate('Y', [1, 0]); } catch (e) { threw = e instanceof TypeError; }
+  strictEqual(threw, true);
+});
+
+test('registerFixedGate accepts valid number[8] flatTuple', () => {
+  setup();
+  let threw = false;
+  try { registerFixedGate('Y', [0, 0, 1, 0, 1, 0, 0, 0]); } catch { threw = true; }
+  strictEqual(threw, false);
+  strictEqual(getFixedGate('Y')[2], 1);
+  strictEqual(getFixedGate('Y')[4], 1);
+});
+
+test('registerParameterizedGate throws on non-function', () => {
+  setup();
+  let threw = false;
+  try { registerParameterizedGate('Ry', 'not-a-function'); } catch (e) { threw = e instanceof TypeError; }
+  strictEqual(threw, true);
+});
+
+test('registerParameterizedGate throws on object instead of function', () => {
+  setup();
+  let threw = false;
+  try { registerParameterizedGate('Ry', { call: () => [] }); } catch (e) { threw = e instanceof TypeError; }
+  strictEqual(threw, true);
+});
+
+test('registerFixedGate throws on empty name', () => {
+  setup();
+  let threw = false;
+  try { registerFixedGate('', [1, 0, 0, 0, 0, 0, 1, 0]); } catch (e) { threw = e instanceof TypeError; }
+  strictEqual(threw, true);
+});
+
+test('registerParameterizedGate throws on empty name', () => {
+  setup();
+  let threw = false;
+  try { registerParameterizedGate('', () => []); } catch (e) { threw = e instanceof TypeError; }
+  strictEqual(threw, true);
+});
+
+test('setup re-registers gates independent of prior seal() call order', () => {
+  setup();
+  strictEqual(getGate('H').length, 8);
+  strictEqual(getGate('X').length, 8);
+  strictEqual(typeof getParameterizedGate('Rx'), 'function');
+  strictEqual(listGates().includes('H'), true);
+  strictEqual(listGates().includes('Rx'), true);
+});
+
 test('seal prevents further registration', () => {
   setup();
   seal();

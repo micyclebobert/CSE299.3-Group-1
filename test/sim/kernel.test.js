@@ -6,13 +6,13 @@
 // =============================================================================
 
 import { test } from 'node:test';
-import { ok, strictEqual } from 'assert';
+import { ok, strictEqual, doesNotThrow } from 'assert';
 import { StateVector } from '../../src/core/StateVector.js';
 import * as Kernel from '../../src/sim/kernel.js';
 import { H, X } from '../../src/gates/basis.js';
 
 const INV_SQRT2 = 1 / Math.sqrt(2);
-const NORM_TOL = 1e-9;
+const NORM_TOL = 1e-12;
 
 function approx(a, b, tol = 1e-12) {
   ok(Math.abs(a - b) <= tol, `expected ${a} to be approx ${b} within ${tol}`);
@@ -169,4 +169,36 @@ test('applyToffoli swaps when both controls are 1', () => {
   // index 7 (111): bits 0,1 = 1,1 -> controls fire, target bit 2 flips: 7 ^ 4 = 3 (011)
   strictEqual(re[7], 0);
   strictEqual(re[3], 1);
+});
+
+test('apply1QubitOp anti-control blocks rows where anti-controlled qubit is 1 (bit-identical pass-through)', () => {
+  const state = fresh(2);
+  const re = state.getRawRe();
+  const im = state.getRawIm();
+  re[0] = INV_SQRT2;
+  re[1] = INV_SQRT2;
+  re[2] = 0.5;
+  re[3] = 0.5;
+
+  const before2r = re[2];
+  const before2i = im[2];
+  const before3r = re[3];
+  const before3i = im[3];
+
+  Kernel.apply1QubitOp(re, im, 2, 0, H, 0, 1 << 1);
+
+  ok(Object.is(re[2], before2r), 'index 2 (anti-control missed) bit-identical');
+  ok(Object.is(im[2], before2i), 'index 2 imag bit-identical');
+  ok(Object.is(re[3], before3r), 'index 3 (anti-control missed) bit-identical');
+  ok(Object.is(im[3], before3i), 'index 3 imag bit-identical');
+  approx(re[0], 1.0);
+  strictEqual(re[1], 0);
+});
+
+test('apply1QubitOp control row equal to target row does not throw (existing behavior; L-19 source gap: kernel.js has no disjointness assertion)', () => {
+  const state = fresh(2);
+  const re = state.getRawRe();
+  const im = state.getRawIm();
+  re[0] = 1.0;
+  doesNotThrow(() => Kernel.apply1QubitOp(re, im, 2, 0, H, 1 << 0, 0));
 });

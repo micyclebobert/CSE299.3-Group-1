@@ -5,7 +5,7 @@
 // =============================================================================
 
 import { test } from 'node:test';
-import { strictEqual, ok } from 'assert';
+import { strictEqual, ok, throws } from 'assert';
 import { Complex } from '../../src/core/Complex.js';
 
 const TOL = 1e-12;
@@ -68,4 +68,53 @@ test('Complex fromPolar', () => {
   const c = Complex.fromPolar(2, 0);
   approx(c.real, 2);
   approx(c.imaginary, 0);
+});
+
+test('Complex divide', () => {
+  // (1+2i)/(3+4i) = (1+2i)(3-4i) / (3^2 + 4^2) = (11+2i)/25 = 0.44 + 0.08i
+  const result = new Complex(1, 2).divide(new Complex(3, 4));
+  approx(result.real, 11 / 25);
+  approx(result.imaginary, 2 / 25);
+});
+
+test('Complex divide by zero throws RangeError', () => {
+  throws(() => new Complex(1, 2).divide(new Complex(0, 0)), RangeError);
+});
+
+test('Complex divide NaN and Infinity edge cases', () => {
+  const nanResult = new Complex(NaN, 1).divide(new Complex(1, 0));
+  ok(Number.isNaN(nanResult.real) && Number.isNaN(nanResult.imaginary));
+  const infResult = new Complex(Infinity, 0).divide(new Complex(1, 0));
+  strictEqual(infResult.real, Infinity);
+  ok(Number.isNaN(infResult.imaginary));
+});
+
+test('Complex scale throws TypeError for non-number scalar', () => {
+  throws(() => new Complex(1, 2).scale('2'), TypeError);
+  throws(() => new Complex(1, 2).scale(null), TypeError);
+  throws(() => new Complex(1, 2).scale(undefined), TypeError);
+  throws(() => new Complex(1, 2).scale({}), TypeError);
+});
+
+test('Complex from throws TypeError for non-number, non-Complex', () => {
+  throws(() => Complex.from({}), TypeError);
+  throws(() => Complex.from('5'), TypeError);
+  throws(() => Complex.from(null), TypeError);
+  throws(() => Complex.from(undefined), TypeError);
+  strictEqual(Complex.from(5).real, 5);
+  strictEqual(Complex.from(new Complex(2, 3)).imaginary, 3);
+});
+
+test('Complex subtract is an alias for sub', () => {
+  const a = new Complex(5, 7);
+  const b = new Complex(2, 3);
+  strictEqual(a.subtract(b).real, a.sub(b).real);
+  strictEqual(a.subtract(b).imaginary, a.sub(b).imaginary);
+});
+
+test('Complex scale NaN and Infinity edge cases', () => {
+  const nanScaled = new Complex(1, 2).scale(NaN);
+  ok(Number.isNaN(nanScaled.real) && Number.isNaN(nanScaled.imaginary));
+  const infScaled = new Complex(1, 2).scale(Infinity);
+  ok(!Number.isFinite(infScaled.real) || !Number.isFinite(infScaled.imaginary));
 });

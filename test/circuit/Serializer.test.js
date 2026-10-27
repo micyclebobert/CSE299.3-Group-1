@@ -2,7 +2,7 @@
 // Mirrors src/circuit/Serializer.js 1:1 per CONVENTIONS.md #224
 import { test } from 'node:test';
 import { strictEqual } from 'assert';
-import { toJson, fromJson, SerializerError } from '../../src/circuit/Serializer.js';
+import { toJson, fromJson, Serializer, SerializerError } from '../../src/circuit/Serializer.js';
 import { Circuit } from '../../src/circuit/Circuit.js';
 import { Gate, GateColumn } from '../../src/circuit/GateColumn.js';
 
@@ -110,4 +110,63 @@ test('SerializerError is a proper Error subclass', () => {
   const err = new SerializerError('test error');
   strictEqual(err.name, 'SerializerError');
   strictEqual(err instanceof Error, true);
+});
+
+test('fromJson throws on non-integer numQubits (float)', () => {
+  let threw = false;
+  try { fromJson('{"format": "simqc-circuit", "version": 1, "bitOrder": "little-endian", "numQubits": 2.5, "columns": []}'); } catch (e) { threw = e instanceof SerializerError; }
+  strictEqual(threw, true);
+});
+
+test('fromJson throws on string numQubits', () => {
+  let threw = false;
+  try { fromJson('{"format": "simqc-circuit", "version": 1, "bitOrder": "little-endian", "numQubits": "2", "columns": []}'); } catch (e) { threw = e instanceof SerializerError; }
+  strictEqual(threw, true);
+});
+
+test('fromJson throws on missing columns field', () => {
+  let threw = false;
+  try { fromJson('{"format": "simqc-circuit", "version": 1, "bitOrder": "little-endian", "numQubits": 2}'); } catch (e) { threw = e instanceof SerializerError; }
+  strictEqual(threw, true);
+});
+
+test('fromJson throws on gate descriptor with unexpected field', () => {
+  let threw = false;
+  try { fromJson('{"format": "simqc-circuit", "version": 1, "bitOrder": "little-endian", "numQubits": 2, "columns": [[{ "gate": "H", "target": 0, "extra": true }]]}'); } catch (e) { threw = e instanceof SerializerError; }
+  strictEqual(threw, true);
+});
+
+test('fromJson throws on columns not an array', () => {
+  let threw = false;
+  try { fromJson('{"format": "simqc-circuit", "version": 1, "bitOrder": "little-endian", "numQubits": 2, "columns": {}}'); } catch (e) { threw = e instanceof SerializerError; }
+  strictEqual(threw, true);
+});
+
+test('toJson is deterministic: two calls produce identical string', () => {
+  const column = new GateColumn({ gates: [new Gate({ name: 'CNOT', target: 1, controls: [{ row: 0, on: true }] })] });
+  const circuit = new Circuit({ numQubits: 2, columns: [column] });
+  strictEqual(toJson(circuit), toJson(circuit));
+});
+
+test('Serializer.toJson and Serializer.fromJson static facade round-trip', () => {
+  const column = new GateColumn({ gates: [new Gate({ name: 'H', target: 0 })] });
+  const circuit = new Circuit({ numQubits: 2, columns: [column] });
+  const json = Serializer.toJson(circuit);
+  strictEqual(typeof json, 'string');
+  const parsed = Serializer.fromJson(json);
+  strictEqual(parsed.isEqualTo(circuit), true);
+});
+
+test('Serializer.toJson matches module-level toJson output', () => {
+  const column = new GateColumn({ gates: [new Gate({ name: 'H', target: 0 })] });
+  const circuit = new Circuit({ numQubits: 2, columns: [column] });
+  strictEqual(Serializer.toJson(circuit), toJson(circuit));
+});
+
+test('Serializer.fromJson matches module-level fromJson output', () => {
+  const column = new GateColumn({ gates: [new Gate({ name: 'H', target: 0 })] });
+  const circuit = new Circuit({ numQubits: 2, columns: [column] });
+  const json = toJson(circuit);
+  strictEqual(Serializer.fromJson(json).isEqualTo(circuit), true);
+  strictEqual(Serializer.fromJson(json).isEqualTo(fromJson(json)), true);
 });

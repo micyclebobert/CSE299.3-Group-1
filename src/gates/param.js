@@ -22,6 +22,9 @@
  * @returns {number[]} flat 8-tuple
  */
 export function Rx(theta) {
+    if (typeof theta !== 'number') {
+        throw new TypeError(`Rx expects a number theta (radians), got: ${String(theta)}`);
+    }
     const c = Math.cos(theta / 2);
     const s = Math.sin(theta / 2);
     return [c, 0, 0, -s, 0, -s, c, 0];
@@ -34,6 +37,9 @@ export function Rx(theta) {
  * @returns {number[]} flat 8-tuple
  */
 export function Ry(theta) {
+    if (typeof theta !== 'number') {
+        throw new TypeError(`Ry expects a number theta (radians), got: ${String(theta)}`);
+    }
     const c = Math.cos(theta / 2);
     const s = Math.sin(theta / 2);
     return [c, 0, -s, 0, s, 0, c, 0];
@@ -46,6 +52,9 @@ export function Ry(theta) {
  * @returns {number[]} flat 8-tuple
  */
 export function Rz(theta) {
+    if (typeof theta !== 'number') {
+        throw new TypeError(`Rz expects a number theta (radians), got: ${String(theta)}`);
+    }
     const c = Math.cos(theta / 2);
     const s = Math.sin(theta / 2);
     return [c, -s, 0, 0, 0, 0, c, s];

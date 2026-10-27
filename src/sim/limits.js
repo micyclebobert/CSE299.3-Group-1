@@ -41,7 +41,7 @@ export function evaluate(n) {
   let advisory = null;
   if (n >= 15 && n <= MAX_EPHEMERAL_QUBITS) {
     advisory = `Advisory: ${n} qubits may be slow on the browser main thread`;
-    console.warn(`limits: ${advisory}`);
+    console.error(`limits: ${advisory}`);
   }
 
   return { mode, advisory, numQubits: n };
