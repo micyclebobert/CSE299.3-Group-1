@@ -18,7 +18,7 @@ import {
 } from './circuit/GateRegistry.js';
 
 import { I, X, Y, Z, H, S, T } from './gates/basis.js';
-import { Rx, Ry, Rz } from './gates/param.js';
+import { Cu1, Rx, Ry, Rz } from './gates/param.js';
 
 // ---------------------------------------------------------------------------
 // Register all gates into the circuit-layer registry.
@@ -36,6 +36,7 @@ registerFixedGate('T', T);
 registerParameterizedGate('Rx', Rx);
 registerParameterizedGate('Ry', Ry);
 registerParameterizedGate('Rz', Rz);
+registerParameterizedGate('Cu1', Cu1);
 
 // Seal the registry so no further mutation is allowed.
 seal();

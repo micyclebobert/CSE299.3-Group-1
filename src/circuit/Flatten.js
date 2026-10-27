@@ -15,6 +15,8 @@
 //   {
 //     gateId: "H",
 //     target: 0,
+//     target2: undefined, // second target for two-target gates (e.g. SWAP)
+//     thetaRad: undefined, // rotation angle for parameterized gates
 //     controls: [{ row: 1, on: true }],
 //     thetaRad: undefined,
 //     column: 2,        // top-level editor column index
@@ -93,8 +95,9 @@ export function flattenCircuit(circuit) {
         instructions.push({
           gateId: gate.name,
           target: gate.target,
+          target2: gate.target2,
+          thetaRad: gate.thetaRad,
           controls: [...gate.controls],
-          thetaRad: undefined,
           column: colIdx,
           virtualColumn,
           subcircuit: undefined,

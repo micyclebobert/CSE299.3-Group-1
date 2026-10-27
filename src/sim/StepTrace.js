@@ -299,6 +299,11 @@ export class StepTrace {
     };
 
     if (this.#mode === 'dense') {
+      // Exhaust the trace so every column-boundary snapshot is cached before
+      // comparing against the analytic expectation at each step.
+      while (this.#step < this.#schedule.length) {
+        this.next();
+      }
       for (let s = 0; s <= this.#schedule.length; s++) {
         checkStep(s);
       }

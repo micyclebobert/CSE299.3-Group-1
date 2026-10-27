@@ -50,3 +50,17 @@ export function Rz(theta) {
     const s = Math.sin(theta / 2);
     return [c, -s, 0, 0, 0, 0, c, s];
 }
+
+/**
+ * Controlled-phase gate: Cu1(θ) = diag(1, 1, 1, e^(i·θ)) on (control, target).
+ * Applied by the hot-path kernel as a single-qubit phase gate on the target
+ * row with a positive control mask; phases only the |11> component, so control
+ * and target rows are interchangeable.
+ * @param {number} theta - phase angle in radians
+ * @returns {number[]} flat 8-tuple
+ */
+export function Cu1(theta) {
+    const c = Math.cos(theta);
+    const s = Math.sin(theta);
+    return [1, 0, 0, 0, 0, 0, c, s];
+}
