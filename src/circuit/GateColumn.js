@@ -37,12 +37,21 @@
  *   new Gate({ name: 'X',   target: 1, controls: [{ row: 0, on: false }] }) // anti-control
  */
 export class Gate {
-  constructor({ name, target, controls = [] }) {
+  constructor({ name, target, controls = [], target2 = undefined, thetaRad = undefined }) {
     if (typeof name !== 'string' || name.length === 0) {
       throw new TypeError(`Gate name must be a non-empty string, got: ${String(name)}`);
     }
     if (!Number.isInteger(target) || target < 0) {
       throw new TypeError(`Gate target must be a non-negative integer, got: ${String(target)}`);
+    }
+    if (target2 !== undefined && (!Number.isInteger(target2) || target2 < 0)) {
+      throw new TypeError(`Gate target2 must be a non-negative integer, got: ${String(target2)}`);
+    }
+    if (target2 !== undefined && target2 === target) {
+      throw new Error(`Gate target and target2 must be distinct rows, got: ${target}`);
+    }
+    if (thetaRad !== undefined && typeof thetaRad !== 'number') {
+      throw new TypeError(`Gate thetaRad must be a number, got: ${String(thetaRad)}`);
     }
     if (!Array.isArray(controls)) {
       throw new TypeError(`Gate controls must be an array, got: ${typeof controls}`);
@@ -64,6 +73,8 @@ export class Gate {
     // Store as frozen internal state so equality is structural & stable.
     this._name = name;
     this._target = target;
+    this._target2 = target2 === undefined ? undefined : target2;
+    this._thetaRad = thetaRad;
     this._controls = Object.freeze(controlsCopy);
 
     Object.freeze(this);
@@ -71,27 +82,31 @@ export class Gate {
 
   get name() { return this._name; }
   get target() { return this._target; }
+  get target2() { return this._target2; }
+  get thetaRad() { return this._thetaRad; }
   get controls() { return this._controls; }
 
   /**
    * Plain JS descriptor suitable for JSON serialization.
-   * Key order is significant: name, target, controls.
+   * Key order is significant: name, target, target2?, controls.
    */
   toDescriptor() {
-    if (this._controls.length === 0) {
-      return { name: this._name, target: this._target };
+    const desc = { name: this._name, target: this._target };
+    if (this._target2 !== undefined) {
+      desc.target2 = this._target2;
     }
-    return {
-      name: this._name,
-      target: this._target,
-      controls: this._controls.map((c) => ({ row: c.row, on: c.on })),
-    };
+    if (this._controls.length > 0) {
+      desc.controls = this._controls.map((c) => ({ row: c.row, on: c.on }));
+    }
+    return desc;
   }
 
   isEqualTo(other) {
     if (!(other instanceof Gate)) return false;
     if (this._name !== other._name) return false;
     if (this._target !== other._target) return false;
+    if (this._target2 !== other._target2) return false;
+    if (this._thetaRad !== other._thetaRad) return false;
     if (this._controls.length !== other._controls.length) return false;
     for (let i = 0; i < this._controls.length; i++) {
       const a = this._controls[i];
@@ -121,10 +136,13 @@ export class GateColumn {
     Object.freeze(this._gates);
 
     // Assert intra-column disjointness: no two operations may share a qubit row
-    // (target or control). Violating this would make simultaneous execution incorrect.
+    // (target, target2, or control). Violating this would make simultaneous execution incorrect.
     const usedRows = new Set();
     for (const gate of this._gates) {
       const rows = new Set([gate.target]);
+      if (gate.target2 !== undefined) {
+        rows.add(gate.target2);
+      }
       for (const c of gate.controls) rows.add(c.row);
       for (const row of rows) {
         if (usedRows.has(row)) {

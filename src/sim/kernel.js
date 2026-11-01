@@ -1,3 +1,20 @@
+// =============================================================================
+// src/sim/kernel.js
+// -----------------------------------------------------------------------------
+// Member 1 — Hot-path scalar kernels for state-vector simulation.
+//
+// Every function mutating state-vector buffers obeys CONVENTIONS.md §7:
+//   1. Bare module functions (never static class methods).
+//   2. Zero heap allocation inside loops.
+//   3. Canonical unrolled 2x2 scalar update over flat 8-number tuples.
+//   4. Stride-2^t block iteration (single visit per pair).
+//   5. Controlled / anti-controlled bit-identical pass-through.
+//   6. Control/target disjointness assertions.
+//
+// Gate Isolation: sim/ imports core/ and circuit/ only. This module imports
+// nothing external (pure functions operating on Float64Array buffers).
+// =============================================================================
+
 export function apply1QubitOp(re, im, n, target, gateFlat, controlMask, antiControlMask) {
   const halfBlock = 1 << target;
   const fullBlock = 2 << target;

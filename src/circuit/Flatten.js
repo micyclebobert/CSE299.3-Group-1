@@ -15,6 +15,8 @@
 //   {
 //     gateId: "H",
 //     target: 0,
+//     target2: undefined, // second target for two-target gates (e.g. SWAP)
+//     thetaRad: undefined, // rotation angle for parameterized gates
 //     controls: [{ row: 1, on: true }],
 //     thetaRad: undefined,
 //     column: 2,        // top-level editor column index
@@ -80,6 +82,7 @@ export function flattenCircuit(circuit) {
           instructions.push({
             gateId: subInstr.gateId,
             target: subInstr.target,
+            target2: subInstr.target2,
             controls: [...subInstr.controls],
             thetaRad: subInstr.thetaRad,
             column: colIdx,
@@ -93,8 +96,9 @@ export function flattenCircuit(circuit) {
         instructions.push({
           gateId: gate.name,
           target: gate.target,
+          target2: gate.target2,
+          thetaRad: gate.thetaRad,
           controls: [...gate.controls],
-          thetaRad: undefined,
           column: colIdx,
           virtualColumn,
           subcircuit: undefined,
@@ -153,4 +157,28 @@ export function scheduleColumns(instructions) {
   }
 
   return executionColumns;
+}
+
+/**
+ * Primary export matching the base filename (Flatten.js -> Flatten).
+ * Static facade over flattenCircuit/scheduleColumns.
+ */
+export class Flatten {
+  /**
+   * Flatten a Circuit into a 1D array of canonical Instruction objects.
+   * @param {Circuit} circuit
+   * @returns {Instruction[]}
+   */
+  static flattenCircuit(circuit) {
+    return flattenCircuit(circuit);
+  }
+
+  /**
+   * Group flat instructions sharing the same virtualColumn into execution batches.
+   * @param {Instruction[]} instructions
+   * @returns {ExecutionColumn[]}
+   */
+  static scheduleColumns(instructions) {
+    return scheduleColumns(instructions);
+  }
 }

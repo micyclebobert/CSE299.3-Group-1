@@ -25,3 +25,19 @@ Before claiming a task is done, run `node --test` from the repo root and confirm
 
 ## When in doubt
 Re-read `SOURCE_OF_TRUTH.md` (architecture), `CONVENTIONS.md` (actionable rules), and `FOLDER_STRUCTURE.md` (domain grouping) before proceeding. If it is still unclear, stop and ask.
+
+## Logging
+After making any codebase modifications, document them in an agent log file.
+
+- **Location:** Create a separate log file for each entry under `docs/AGENT_LOGS/`.
+- **Filename:** Generate the current system timestamp using `node -e 'console.log(new Date(Date.now() + 21600000).toISOString().replace(/T/, "_").replace(/:/g, "-").replace(/\.\d{3}Z$/, ""))'` (this will output time in the format `YYYY-MM-DD_HH-mm-ss`) and use the format `YYYY-MM-DD_HH-mm-ss_<short-description>.md`. Ensure each filename is unique and descriptive.
+- **Content:** Use the following structure:
+
+```text
+Title: <Short, descriptive title>
+
+Summary:
+<Brief description of the changes made>
+```
+
+- **When to log:** Include a summary for all substantial or non-trivial changes. Summary may be omitted for small changes. Logging may be omitted for trivial changes.
