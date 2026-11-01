@@ -1,0 +1,3 @@
+implemented basis.js a js file that includes the basic gates.
+implemented param.js that helps to rotate the qbits.
+implemented registry.js that registers all the gates and made the gates immutable.
