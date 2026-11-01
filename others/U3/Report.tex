@@ -1,0 +1,99 @@
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{algorithmic}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{url}
+
+\begin{document}
+
+\title{SimQC -- Weekly Progress Report\\}
+\author{
+    \IEEEauthorblockN{Aoutul Nabi Purna\IEEEauthorrefmark{1}, Shishir Dhar\IEEEauthorrefmark{2}, Shihab Sharar\IEEEauthorrefmark{3}, and Md. Iftikhar Alam Hridik\IEEEauthorrefmark{4}}
+    \IEEEauthorblockA{Department of Electrical and Computer Engineering, North South University, Dhaka, Bangladesh}
+    \IEEEauthorblockA{Emails: \{\IEEEauthorrefmark{1}aoutul.purna.241, \IEEEauthorrefmark{2}shishir.dhar.241, \IEEEauthorrefmark{3}shihab.sharar.241, \IEEEauthorrefmark{4}iftikhar.hridik.241\}@northsouth.edu}
+}
+
+\maketitle
+
+\begin{abstract}
+This report outlines Sprint 3 of the SimQC quantum simulator, covering the engine analysis core, the tiered step trace, qubit-ceiling limits, QFT and Shor algorithm circuit builders, circuit extensions (URL codec, subcircuit nesting and recursive flattening, undo/redo history), and two read-only leaf modules---an inspector (purity, Bloch vector, shot histogram) and a debugger (timeline scrubber, breakpoint manager). The sprint hardens the core pipeline of the zero-allocation state-vector engine: every source module carries a 1:1 mirrored test, \texttt{node --test} passes 100\%, and the headless CLI emits correct Bell-state JSON on \texttt{stdout}. The \texttt{ai/} module and DOM-bound \texttt{canvas/} panels are deferred to Sprint 4.
+\end{abstract}
+
+\section{Progress Summary}
+During this sprint we implemented build-order steps 5, 7--10 per the frozen Sprint 3 plan[cite: 1]. Completed deliverables include:
+
+\begin{enumerate}
+    \item \texttt{src/sim/analytic.js} --- curated closed-form state expectations (Bell, GHZ, QFT phase transforms, teleportation). \texttt{verify(analyticExpectation)} compares trace states to formulas within $10^{-12}$ for $n\le8$ and $10^{-9}$ for $n>8$.
+    \item \texttt{src/sim/StepTrace.js} --- tiered step trace over circuit columns. Dense Mode ($n\le12$) clones state pairs at column boundaries for $O(1)$ scrubbing; Ephemeral Replay Mode ($n>12$) uses a single buffer pair with fast-forward on \texttt{seek()}. API: \texttt{reset()}, \texttt{next()}, \texttt{seek(targetCol)}, \texttt{findStepWhere(predicate)}, \texttt{verify()}, and read-only \texttt{currentState()} accessor.
+    \item \texttt{src/sim/limits.js} --- qubit-ceiling thresholds \texttt{MAX\_DENSE\_QUBITS=12}, \texttt{MAX\_EPHEMERAL\_QUBITS=20}, \texttt{HARD\_CLI\_CAP=24}; \texttt{evaluate()} emits an advisory warning for $15\le n\le20$.
+    \item QFT (\texttt{src/algorithms/qft.js}) and Shor (\texttt{src/algorithms/shor.js}) circuit builders, verified against \texttt{analytic.js} phase expectations; Step 5 verification confirms $\ge3$ canonical algorithms (Deutsch--Jozsa from Sprint 2, plus QFT and Shor) pass closed-form distribution checks.
+    \item \texttt{src/circuit/Serializer.js} --- Tier 2 URL codec round-trip: \texttt{deflate-raw} plus URL-safe Base64 (\texttt{[A-Za-z0-9-\_]}, no \texttt{=} padding), lossless across circuits with subcircuits, controls, and anti-controls.
+    \item \texttt{src/circuit/GateColumn.js} --- \texttt{Gate} carries an optional embedded \texttt{Circuit} (\texttt{subcircuit}/\texttt{subcircuitName}); \texttt{isEqualTo} compares subcircuits structurally.
+    \item \texttt{src/circuit/Flatten.js} --- \texttt{flattenCircuit} recursively inlines nested subcircuits in deterministic left-to-right, top-to-bottom order; \texttt{virtualColumn} metadata shifts correctly.
+    \item \texttt{src/state/History.js} --- linear stack of immutable \texttt{Circuit} references; \texttt{undo()}/\texttt{redo()} round-trip over 100 random operations via \texttt{isEqualTo()}.
+    \item \texttt{src/inspector/} (read-only leaf) --- \texttt{Inspector.js} amplitude/probability readouts from \texttt{StepTrace.currentState()}; \texttt{Purity.js} single-qubit purity $\gamma_q=\mathrm{Tr}(\rho_q^2)$ and linear entropy $S_L(q)=1-\gamma_q$ writing to pre-allocated \texttt{Float64Array} buffers; \texttt{Bloch.js} per-qubit vector $\vec r_q=(2\Re[\rho_{01}],-2\Im[\rho_{01}],\rho_{00}-\rho_{11})$; \texttt{Histogram.js} shot sampler returning count maps summing to shots. Zero mutations; no imports from \texttt{debugger/} or \texttt{ai/}.
+    \item \texttt{src/debugger/} (read-only leaf) --- \texttt{Debugger.js} playback controls (\texttt{reset}/\texttt{next}/\texttt{seek}); \texttt{BreakpointManager.js} \texttt{findStepWhere} breakpoint toggle; \texttt{Timeline.js} scrubber with $O(1)$ snapshot copy (Dense Mode) or zero-allocation replay (Ephemeral Mode). Zero mutations; no imports from \texttt{inspector/} or \texttt{ai/}.
+\end{enumerate}
+
+The \texttt{ai/} folder (step 11) was removed and is not touched this sprint; DOM-bound \texttt{canvas/} panels (step 6) are deferred to Sprint 4. The frozen conventions \texttt{CONVENTIONS.md}, \texttt{FOLDER\_STRUCTURE.md}, and \texttt{SOURCE\_OF\_TRUTH.md} remain the source of truth[cite: 1].
+
+\section{Learning: Tiered Step Trace and Read-Only Leaves}
+The textbook approach of materializing every simulation snapshot at each column costs $\mathcal{O}(n\cdot 2^n)$ memory and prohibits interactive scrubbing at scale[cite: 1]. Sprint 3's \texttt{StepTrace} avoids this with a tiered strategy: for $n\le12$ it retains cloned state pairs at column boundaries (Dense Mode, $O(1)$ random access); beyond that it keeps one buffer pair and fast-forwards on demand (Ephemeral Replay Mode, zero-allocation)\cite{1}. This mirrors the matrix-free pairwise kernel from Sprint 2, which updates only the $2^{n-1}$ amplitude pairs differing in the target bit at $\mathcal{O}(2^n)$ cost per gate[cite: 1].
+
+Because the trace is append-only and snapshots are immutable, both \texttt{inspector/} and \texttt{debugger/} are read-only leaves: they read \texttt{StepTrace} exclusively and never mutate state. This decouples analysis UI from the engine and guarantees that inspector/debugger activity cannot corrupt an in-flight simulation, a prerequisite for the strict layering rule that leaf folders are imported only by \texttt{main.js} and injected via \texttt{GateRegistry}[cite: 1].
+
+\section{Architecture Decisions}
+\begin{itemize}
+    \item \textbf{Layering:} \texttt{core/} imports only internal \texttt{core/}; \texttt{circuit/} imports \texttt{core/} + internal \texttt{circuit/}; \texttt{sim/} imports \texttt{core/} + \texttt{circuit/}. Leaf folders (\texttt{gates/}, \texttt{debugger/}, \texttt{inspector/}) are imported exclusively by \texttt{main.js} and injected into \texttt{circuit/} via \texttt{GateRegistry}; zero imports exist between any two leaf folders[cite: 1].
+    \item \textbf{State format:} split \texttt{Float64Array} buffers (\texttt{re[]}, \texttt{im[]}); gates flattened at definition time into contiguous 8-double tuples[cite: 1].
+    \item \textbf{Zero mutations:} inspector and debugger perform read-only access via \texttt{currentState()}; no module-level mutable state anywhere[cite: 1].
+    \item \textbf{CLI pipe contract:} headless runner reads canonical v1 circuit JSON from \texttt{stdin} and writes deterministic state-vector JSON to \texttt{stdout}; diagnostics go to \texttt{stderr}[cite: 1].
+    \item \textbf{Testing:} every source module has a 1:1 mirrored \texttt{*.test.js} under \texttt{test/}; no test asserts hardcoded non-constant outputs[cite: 1].
+\end{itemize}
+
+\section{Validation}
+All verification was performed on bare Node.js via \texttt{node --test} from the repo root: the suite passes 100\%, and \texttt{cat test/fixtures/bell\_state.json | node cli/cli.js} produces correct Bell-state JSON on \texttt{stdout}[cite: 1]. QFT and Shor builders are differentially validated against \texttt{analytic.js} closed-form expectations within tolerance; the Serializer round-trip \texttt{decode(encode(c)).isEqualTo(c)} holds across generated circuits with subcircuits, controls, and anti-controls. A layering audit confirmed \texttt{gates/} is imported only by \texttt{main.js}, there are zero inter-leaf imports, and the \texttt{ai/} folder is absent[cite: 1].
+
+\section{Next Steps}
+\begin{enumerate}
+    \item Sprint 4: implement \texttt{src/ai/} (step 11 --- local inference under the frozen \texttt{AI\_INTERFACE.md} contract, strictly last) and the remaining \texttt{src/canvas/} work (\texttt{Interaction.js} plus dark-mode dockable panels, step 6)\cite{1}.
+    \item Extend the differential harness to parameterized gates ($R_x, R_y, R_z$) and multi-qubit controlled operations[cite: 1].
+    \item Explore Worker-thread parallelization of the kernel's block iteration over independent amplitude pairs[cite: 1].
+\end{enumerate}
+
+\textbf{Exit criterion:} \texttt{node --test} passes 100\%; every source module has a 1:1 test; CLI emits correct Bell-state output; no layering violations[cite: 1].
+
+\section{Risks and Mitigations}
+\begin{enumerate}
+    \item \textbf{Memory ceiling:} $\sim$256 MB at 24 qubits; mitigated by \texttt{HARD\_CLI\_CAP=24} and advisory warnings at $15\le n\le20$[cite: 1].
+    \item \textbf{GC pressure:} mitigated by the zero-allocation kernel and Ephemeral Replay Mode detailed in Sections II--III[cite: 1].
+    \item \textbf{Bit-ordering inconsistencies:} mitigated by frozen conventions and automated bidirectional tests against the Kronecker reference[cite: 1].
+    \item \textbf{Numerical drift:} accumulated IEEE-754 rounding over deep circuits; mitigated by per-gate norm verification and selective renormalization at a $10^{-9}$ drift threshold[cite: 1].
+    \item \textbf{Layering drift:} new features may create forbidden inter-leaf imports; mitigated by a layering audit in the verification checklist[cite: 1].
+\end{enumerate}
+
+\begin{thebibliography}{00}
+
+\bibitem{quirk}
+C.~Gidney, ``Quirk: A drag-and-drop quantum circuit simulator that runs in your browser,'' GitHub repository, Apache-2.0 license. [Online]. Available: \url{https://github.com/strilanc/quirk}
+
+\bibitem{qiskit}
+A.~Javadi-Abhari \emph{et~al.}, ``Qiskit: An open-source framework for quantum computing,'' IBM, 2017. [Online]. Available: \url{https://qiskit.org}
+
+\bibitem{deraedt}
+H.~De~Raedt and K.~Michielsen, ``Computational methods for simulating quantum computers,'' in \emph{Quantum Computing and Quantum Bits in Mesoscopic Systems}. Hoboken, NJ, USA: Wiley, 2004.
+
+\bibitem{qhipster}
+M.~Smelyanskiy, N.~P.~D.~Sawaya, and A.~Aspuru-Guzik, ``qHiPSTER: The Quantum High Performance Software Toolkit,'' 2016, \emph{arXiv:1601.07195}.
+
+\bibitem{openqasm}
+A.~W.~Cross \emph{et~al.}, ``OpenQASM 3 specification,'' 2021. [Online]. Available: \url{https://openqasm.com}
+
+\end{thebibliography}
+
+\end{document}
