@@ -10,7 +10,7 @@ export class InspectorUI {
     this._stepTrace = stepTrace;
   }
   probabilities() {
-    const state = this._stepTrace.currentState();
+    const state = this._stepTrace.currentState;
     return state.probabilities();
   }
 }
