@@ -187,11 +187,14 @@ The `src/ai/AIExplainer.js` stub (13 lines) was replaced with a full implementat
 
 ## 7. What to do each day
 
-All 10 segments are complete. No further daily work is required for the AI leaf.
+All `ai/` leaf code is written. The remaining work is **re-wiring** the leaf into the application (edits to existing files):
 
-**Remaining maintenance (edits to existing files, if needed):**
-- `src/main.js` — the only file permitted to import `ai/`; any future `ai/` additions require edits here (≤2-line diff to keep `ai/` deletable).
-- `README.md` — update if AI usage documentation changes.
-- `SOURCE_OF_TRUTH.md` — §9.3 Step 11 status already marked "Completed".
+1. **Re-wire `src/main.js`** (the only file permitted to import `ai/`):
+   - Uncomment `import { AIExplainer } from './ai/AIExplainer.js';`
+   - Add `const aiExplainer = new AIExplainer();` after `seal();`
+   - Add `export { aiExplainer };`
+   - This is a ≤2-line diff, keeping `ai/` deletable.
+2. **(Optional) Re-edit `README.md` and `SOURCE_OF_TRUTH.md`** to document the completed AI work and mark Step 11 as done.
+3. Run `node --test` from the repo root once Node.js is available, to confirm the full suite (including `test/ai/`) passes.
 
 **Do not commit unless explicitly asked** (per repo git policy).
