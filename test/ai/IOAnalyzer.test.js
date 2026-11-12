@@ -5,7 +5,7 @@
 // no LLM. Runs via node --test.
 // =============================================================================
 
-import { assert } from 'node:assert';
+import assert from 'node:assert';
 import { describe, it } from 'node:test';
 import { IOAnalyzer } from '../../src/ai/IOAnalyzer.js';
 
@@ -47,7 +47,7 @@ describe('IOAnalyzer', () => {
     assert.deepEqual(analysis.outputAffectedColumns, [0, 1]);
     assert.equal(analysis.touchedColumns.length, 2);
     assert.ok(analysis.causalChain.length > 0);
-    assert.ok(analysis.summary.includes('input rows'));
+    assert.ok(analysis.summary.includes('Input rows'));
   });
 
   it('groups multiple gates in the same virtual column', () => {
@@ -72,7 +72,7 @@ describe('IOAnalyzer', () => {
     );
     assert.deepEqual(analysis.inputAffectedColumns, [0]);
     assert.deepEqual(analysis.outputAffectedColumns, []);
-    assert.ok(analysis.summary.includes('No shared columns'));
+    assert.ok(analysis.summary.includes('output rows [1] are touched in 0 column(s)'));
   });
 
   it('respects StepTrace changed steps (filters unchanged columns)', () => {

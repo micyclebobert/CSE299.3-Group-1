@@ -10,6 +10,10 @@
 const SCHEMA_VERSION = '1';
 const PROMPT_VERSION = '1';
 
+function rotr(x, n) {
+  return ((x >>> n) | (x << (32 - n))) | 0;
+}
+
 // SHA-256 round constants (first 32 bits of fractional parts of cube roots
 // of the first 64 primes).
 const K = new Uint32Array([
@@ -64,15 +68,26 @@ function sha256Hex(message) {
   const bytes = utf8ToBytes(message);
   const bitLength = bytes.length * 8;
 
-  // Prepend 0x80, pad with zeros to make length ≡ 448 mod 512, append 64-bit length.
-  const paddedLen =
-    Math.floor((bitLength + 64 + 512 - 1 - 448) / 512) * 512 + 448 + 64;
-  const padded = new Uint8Array(paddedLen / 8);
+  // Pad: append 0x80, then zeros until length in bits ≡ 448 mod 512,
+  // then append the original 64-bit big-endian bit length.
+  const paddedLenBits =
+    Math.floor((bitLength + 1 + 64 + 512 - 1 - 448) / 512) * 512 + 448 + 64;
+  const paddedLenBytes = paddedLenBits / 8;
+  const padded = new Uint8Array(paddedLenBytes);
   padded.set(bytes);
   padded[bytes.length] = 0x80;
-  const lenView = new DataView(padded.buffer, padded.length - 8, 8);
-  lenView.setUint32(0, 0, false); // high 32 bits (message length < 2^32 practically)
-  lenView.setUint32(4, bitLength, false);
+
+  // Write 64-bit big-endian bit length into the final 8 bytes.
+  const lenHi = Math.floor(bitLength / 0x100000000);
+  const lenLo = bitLength >>> 0;
+  padded[paddedLenBytes - 8] = (lenHi >>> 24) & 0xff;
+  padded[paddedLenBytes - 7] = (lenHi >>> 16) & 0xff;
+  padded[paddedLenBytes - 6] = (lenHi >>> 8) & 0xff;
+  padded[paddedLenBytes - 5] = lenHi & 0xff;
+  padded[paddedLenBytes - 4] = (lenLo >>> 24) & 0xff;
+  padded[paddedLenBytes - 3] = (lenLo >>> 16) & 0xff;
+  padded[paddedLenBytes - 2] = (lenLo >>> 8) & 0xff;
+  padded[paddedLenBytes - 1] = lenLo & 0xff;
 
   let h0 = 0x6a09e667;
   let h1 = 0xbb67ae85;
@@ -85,35 +100,25 @@ function sha256Hex(message) {
 
   const w = new Uint32Array(64);
 
-  for (let chunkStart = 0; chunkStart < padded.length; chunkStart += 64) {
-    const chunk = padded.subarray(chunkStart, chunkStart + 64);
+  for (let chunkStart = 0; chunkStart < paddedLenBytes; chunkStart += 64) {
     for (let t = 0; t < 16; t += 1) {
+      const o = chunkStart + t * 4;
       w[t] =
-        (chunk[t * 4] << 24) |
-        (chunk[t * 4 + 1] << 16) |
-        (chunk[t * 4 + 2] << 8) |
-        chunk[t * 4 + 3];
+        ((padded[o] << 24) | (padded[o + 1] << 16) | (padded[o + 2] << 8) | padded[o + 3]) |
+        0;
     }
     for (let t = 16; t < 64; t += 1) {
-      const s0 =
-        ((w[t - 15] >>> 7) | (w[t - 15] << 25)) ^
-        ((w[t - 15] >>> 18) | (w[t - 15] << 14)) ^
-        (w[t - 15] >>> 3);
-      const s1 =
-        ((w[t - 2] >>> 17) | (w[t - 2] << 15)) ^
-        ((w[t - 2] >>> 19) | (w[t - 2] << 13)) ^
-        (w[t - 2] >>> 10);
+      const s0 = rotr(w[t - 15], 7) ^ rotr(w[t - 15], 18) ^ (w[t - 15] >>> 3);
+      const s1 = rotr(w[t - 2], 17) ^ rotr(w[t - 2], 19) ^ (w[t - 2] >>> 10);
       w[t] = (w[t - 16] + s0 + w[t - 7] + s1) | 0;
     }
 
     let a = h0, b = h1, c = h2, d = h3, e = h4, f = h5, g = h6, h = h7;
     for (let t = 0; t < 64; t += 1) {
-      const S1 =
-        ((e >>> 6) | (e << 26)) ^ ((e >>> 11) | (e << 21)) ^ ((e >>> 25) | (e << 7));
+      const S1 = rotr(e, 6) ^ rotr(e, 11) ^ rotr(e, 25);
       const ch = (e & f) ^ (~e & g);
       const temp1 = (h + S1 + ch + K[t] + w[t]) | 0;
-      const S0 =
-        ((a >>> 2) | (a << 30)) ^ ((a >>> 13) | (a << 19)) ^ ((a >>> 22) | (a << 10));
+      const S0 = rotr(a, 2) ^ rotr(a, 13) ^ rotr(a, 22);
       const maj = (a & b) ^ (a & c) ^ (b & c);
       const temp2 = (S0 + maj) | 0;
       h = g;
@@ -156,6 +161,7 @@ function cacheKey(canonicalJson, schemaVersion = SCHEMA_VERSION, promptVersion =
  * In-memory content-addressed explanation cache.
  */
 export class Cache {
+  #store;
   constructor() {
     this.#store = new Map();
   }
@@ -198,3 +204,5 @@ export class Cache {
     return cacheKey(canonicalJson, schemaVersion, promptVersion);
   }
 }
+
+export { sha256Hex };

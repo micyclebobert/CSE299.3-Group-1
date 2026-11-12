@@ -12,7 +12,7 @@ export class Purity {
     // rho01 = sum over pairs differing in bit q
     let rho00 = 0, rho11 = 0;
     let re01 = 0, im01 = 0;
-    const bit = 1 << (n - 1 - q);
+    const bit = 1 << q;
     for (let i = 0; i < size; i++) {
       const prob = cs.getRe(i) * cs.getRe(i) + cs.getIm(i) * cs.getIm(i);
       if (i & bit) rho11 += prob; else rho00 += prob;

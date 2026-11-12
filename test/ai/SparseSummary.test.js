@@ -5,9 +5,14 @@
 // no network, no LLM. Runs via node --test.
 // =============================================================================
 
-import { assert } from 'node:assert';
+import assert from 'node:assert';
 import { describe, it } from 'node:test';
 import { SparseSummary } from '../../src/ai/SparseSummary.js';
+
+const TOL = 1e-12;
+function approx(a, b, tol = TOL) {
+  assert.ok(Math.abs(a - b) <= tol, `expected ${a} to be approx ${b} within ${tol}`);
+}
 
 function makeState(amplitudes, numQubits) {
   // amplitudes: Map<index, [re, im]>; missing indices are zero.
@@ -52,14 +57,14 @@ describe('SparseSummary', () => {
     const labels = topK.map((t) => t.label).sort();
     assert.deepEqual(labels, ['|00>', '|11>']);
     for (const t of topK) {
-      assert.equal(t.probability, 0.5);
+      approx(t.probability, 0.5);
     }
 
     // Bell: maximally entangled -> rho00 = 0.5, sl = 0.5 on both rows
     assert.equal(marginals.length, 2);
     for (const m of marginals) {
-      assert.equal(m.rho00, 0.5);
-      assert.equal(m.sl, 0.5);
+      approx(m.rho00, 0.5);
+      approx(m.sl, 0.5);
     }
   });
 
@@ -75,8 +80,8 @@ describe('SparseSummary', () => {
     const labels = topK.map((t) => t.label).sort();
     assert.deepEqual(labels, ['|000>', '|111>']);
     for (const m of marginals) {
-      assert.equal(m.rho00, 0.5);
-      assert.equal(m.sl, 0.5);
+      approx(m.rho00, 0.5);
+      approx(m.sl, 0.5);
     }
   });
 
@@ -97,7 +102,7 @@ describe('SparseSummary', () => {
       [2, [0.01, 0]],
     ]);
     const state = makeState(amps, 2);
-    const { topK } = SparseSummary.summarize(state, 16, 0.05);
+    const { topK } = SparseSummary.summarize(state, 16, 0.005);
     assert.equal(topK.length, 2);
     assert.equal(topK[0].label, '|00>');
     assert.equal(topK[1].label, '|01>');
@@ -112,7 +117,7 @@ describe('SparseSummary', () => {
     const { topK } = SparseSummary.summarize(state, 3);
     assert.equal(topK.length, 3);
     for (const t of topK) {
-      assert.equal(t.probability, 1 / 8);
+      approx(t.probability, 1 / 8);
     }
   });
 

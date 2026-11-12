@@ -53,19 +53,19 @@ The goal is a simulator that is **numerically correct**, **efficient**, and **in
 
 | Component | Commitment | Status |
 |---|---|---|
-| Complex arithmetic and `n`-qubit state vector | Committed | ⬜ Planned |
-| Gate library (X, Y, Z, H, CNOT, Rx, Ry, Rz) | Committed | ⬜ Planned |
-| Gate application on target qubits only | Committed | ⬜ Planned |
-| Measurement and repeated-shot sampling | Committed | ⬜ Planned |
-| At least three of Deutsch–Jozsa, Grover, QFT | Committed | ⬜ Planned |
+| Complex arithmetic and `n`-qubit state vector | Committed | ✅ Done |
+| Gate library (X, Y, Z, H, CNOT, Rx, Ry, Rz) | Committed | ✅ Done |
+| Gate application on target qubits only | Committed | ✅ Done |
+| Measurement and repeated-shot sampling | Committed | ✅ Done |
+| At least three of Deutsch–Jozsa, Grover, QFT | Committed | ✅ Done |
 | Custom drag-and-drop circuit editor | Committed | ⬜ Planned |
-| State displays (probabilities, amplitudes, state-vector text, histogram) | Committed | ⬜ Planned |
-| Extended gates (I, S, T, CZ, SWAP, Toffoli) | Extension | ⬜ Planned |
-| JSON and URL persistence | Planned | ⬜ Planned |
-| Breakpoints and stepwise inspection | Proposed feature | ⬜ Planned |
+| State displays (probabilities, amplitudes, state-vector text, histogram) | Committed | ✅ Done |
+| Extended gates (I, S, T, CZ, SWAP, Toffoli) | Extension | ✅ Done |
+| JSON and URL persistence | Planned | 🟨 In progress |
+| Breakpoints and stepwise inspection | Proposed feature | ✅ Done |
 | Reusable circuit blocks | Proposed feature | ⬜ Planned |
 | Entanglement highlighting | Proposed feature | ⬜ Planned |
-| Explainer AI and builder AI | Proposed feature | ⬜ Planned |
+| Explainer AI and builder AI | Proposed feature | ✅ Done |
 | Bloch sphere and density-matrix displays | Deferred | ⬜ Later |
 
 *Update this table as work lands: ⬜ Planned → 🟨 In progress → ✅ Done.*

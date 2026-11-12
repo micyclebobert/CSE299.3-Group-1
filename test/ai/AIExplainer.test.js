@@ -5,7 +5,7 @@
 // network, no DOM, no LLM. Runs via node --test.
 // =============================================================================
 
-import { assert } from 'node:assert';
+import assert from 'node:assert';
 import { describe, it } from 'node:test';
 import { AIExplainer } from '../../src/ai/AIExplainer.js';
 import { Cache } from '../../src/ai/Cache.js';
@@ -64,7 +64,7 @@ describe('AIExplainer', () => {
   });
 
   it('uses options.model when provided', async () => {
-    mockFetch(okResponse('custom model response'));
+    const fetchMock = mockFetch(okResponse('custom model response'));
     const explainer = new AIExplainer();
     await explainer.explain(instructions, summaries, 2, { model: 'qwen2.5-coder:7b' });
     const body = JSON.parse(fetchMock.callArgs().init.body);
@@ -107,7 +107,7 @@ describe('AIExplainer', () => {
   it('cache hit returns cached value without calling fetch', async () => {
     const fetchMock = mockFetch(okResponse('should not be called'));
     const cache = new Cache();
-    const key = 'fake-key';
+    const key = Cache.computeKey('some-json');
     cache.set(key, 'cached explanation');
     const explainer = new AIExplainer();
     const result = await explainer.explain(

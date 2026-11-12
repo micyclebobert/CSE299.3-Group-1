@@ -4,7 +4,7 @@ export class Bloch {
     const cs = this._stepTrace.currentState;
     const n = cs.numQubits();
     const size = cs.size();
-    const bit = 1 << (n - 1 - q);
+    const bit = 1 << q;
     let rho00 = 0, rho11 = 0, re01 = 0, im01 = 0;
     for (let i = 0; i < size; i++) {
       const prob = cs.getRe(i) * cs.getRe(i) + cs.getIm(i) * cs.getIm(i);

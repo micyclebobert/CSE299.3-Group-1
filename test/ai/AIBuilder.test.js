@@ -6,7 +6,7 @@
 // Runs via node --test.
 // =============================================================================
 
-import { assert } from 'node:assert';
+import assert from 'node:assert';
 import { describe, it } from 'node:test';
 import { AIBuilder } from '../../src/ai/AIBuilder.js';
 
@@ -46,7 +46,7 @@ describe('AIBuilder', () => {
     const result = await AIBuilder.build('Bell state on 2 qubits', 2);
     assert.equal(result.ok, true);
     assert.ok(result.circuit);
-    assert.equal(result.circuit.numQubits(), 2);
+    assert.equal(result.circuit.numQubits, 2);
     assert.ok(result.json);
   });
 
@@ -79,7 +79,7 @@ describe('AIBuilder', () => {
     mockFetch(okResponse('```json\n' + JSON.stringify(bellJson) + '\n```'));
     const result = await AIBuilder.build('Bell state on 2 qubits', 2);
     assert.equal(result.ok, true);
-    assert.equal(result.circuit.numQubits(), 2);
+    assert.equal(result.circuit.numQubits, 2);
   });
 
   it('rejects empty prompt', async () => {
@@ -97,9 +97,9 @@ describe('AIBuilder', () => {
   });
 
   it('passes options.model to Ollama', async () => {
-    mockFetch(okResponse(JSON.stringify(bellJson)));
+    const fetchMock = mockFetch(okResponse(JSON.stringify(bellJson)));
     await AIBuilder.build('Bell state', 2, { model: 'qwen2.5-coder:7b' });
-    const body = JSON.parse(mockFetch.callArgs().init.body);
+    const body = JSON.parse(fetchMock.callArgs().init.body);
     assert.equal(body.model, 'qwen2.5-coder:7b');
     assert.equal(body.stream, false);
     assert.equal(body.options.num_ctx, 4096);

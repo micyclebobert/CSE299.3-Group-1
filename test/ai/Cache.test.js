@@ -5,23 +5,23 @@
 // no network. Runs via node --test.
 // =============================================================================
 
-import { assert } from 'node:assert';
+import assert from 'node:assert';
 import { describe, it } from 'node:test';
-import { Cache } from '../../src/ai/Cache.js';
+import { Cache, sha256Hex } from '../../src/ai/Cache.js';
 
 describe('Cache SHA-256', () => {
   it('matches known SHA-256 of empty string', () => {
-    const key = Cache.computeKey('');
+    const key = sha256Hex('');
     assert.equal(key, 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855');
   });
 
   it('matches known SHA-256 of "abc"', () => {
-    const key = Cache.computeKey('abc');
+    const key = sha256Hex('abc');
     assert.equal(key, 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad');
   });
 
   it('matches known SHA-256 of "hello world"', () => {
-    const key = Cache.computeKey('hello world');
+    const key = sha256Hex('hello world');
     assert.equal(key, 'b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9');
   });
 
