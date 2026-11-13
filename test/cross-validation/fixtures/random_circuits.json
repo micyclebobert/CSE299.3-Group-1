@@ -1,0 +1,73 @@
+[
+  {
+    "format": "simqc-circuit",
+    "version": 1,
+    "bitOrder": "little-endian",
+    "numQubits": 1,
+    "columns": [[{ "gate": "H", "target": 0 }]]
+  },
+  {
+    "format": "simqc-circuit",
+    "version": 1,
+    "bitOrder": "little-endian",
+    "numQubits": 2,
+    "columns": [
+      [{ "gate": "X", "target": 0 }],
+      [{ "gate": "H", "target": 1 }],
+      [{ "gate": "CNOT", "target": 1, "controls": [{ "row": 0, "on": true }] }]
+    ]
+  },
+  {
+    "format": "simqc-circuit",
+    "version": 1,
+    "bitOrder": "little-endian",
+    "numQubits": 3,
+    "columns": [
+      [{ "gate": "H", "target": 0 }],
+      [{ "gate": "Rx", "target": 1, "thetaRad": 1.0471975511965976 }],
+      [{ "gate": "CNOT", "target": 2, "controls": [{ "row": 0, "on": true }] }],
+      [{ "gate": "CZ", "target": 2, "controls": [{ "row": 1, "on": true }] }]
+    ]
+  },
+  {
+    "format": "simqc-circuit",
+    "version": 1,
+    "bitOrder": "little-endian",
+    "numQubits": 4,
+    "columns": [
+      [{ "gate": "H", "target": 0 }],
+      [{ "gate": "Ry", "target": 1, "thetaRad": 0.7853981633974483 }],
+      [{ "gate": "Rz", "target": 2, "thetaRad": 0.5235987755982988 }],
+      [{ "gate": "Cu1", "target": 0, "controls": [{ "row": 3, "on": true }], "thetaRad": 1.0471975511965976 }],
+      [{ "gate": "CNOT", "target": 3, "controls": [{ "row": 2, "on": true }] }]
+    ]
+  },
+  {
+    "format": "simqc-circuit",
+    "version": 1,
+    "bitOrder": "little-endian",
+    "numQubits": 5,
+    "columns": [
+      [{ "gate": "X", "target": 0 }],
+      [{ "gate": "Y", "target": 1 }],
+      [{ "gate": "Z", "target": 2 }],
+      [{ "gate": "S", "target": 3 }],
+      [{ "gate": "T", "target": 4 }],
+      [{ "gate": "CNOT", "target": 1, "controls": [{ "row": 0, "on": true }] }],
+      [{ "gate": "CNOT", "target": 4, "controls": [{ "row": 3, "on": true }] }]
+    ]
+  },
+  {
+    "format": "simqc-circuit",
+    "version": 1,
+    "bitOrder": "little-endian",
+    "numQubits": 6,
+    "columns": [
+      [{ "gate": "H", "target": 0 }, { "gate": "H", "target": 1 }, { "gate": "H", "target": 2 }],
+      [{ "gate": "CNOT", "target": 1, "controls": [{ "row": 0, "on": true }] }],
+      [{ "gate": "CNOT", "target": 3, "controls": [{ "row": 2, "on": true }] }],
+      [{ "gate": "CNOT", "target": 5, "controls": [{ "row": 4, "on": true }] }],
+      [{ "gate": "SWAP", "target": 0, "target2": 5 }]
+    ]
+  }
+]

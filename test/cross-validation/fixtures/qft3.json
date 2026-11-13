@@ -1,0 +1,14 @@
+{
+  "format": "simqc-circuit",
+  "version": 1,
+  "bitOrder": "little-endian",
+  "numQubits": 3,
+  "columns": [
+    [{ "gate": "H", "target": 0 }],
+    [{ "gate": "Cu1", "target": 0, "controls": [{ "row": 1, "on": true }], "thetaRad": 1.5707963267948966 }],
+    [{ "gate": "Cu1", "target": 0, "controls": [{ "row": 2, "on": true }], "thetaRad": 0.7853981633974483 }],
+    [{ "gate": "H", "target": 1 }],
+    [{ "gate": "Cu1", "target": 1, "controls": [{ "row": 2, "on": true }], "thetaRad": 1.5707963267948966 }],
+    [{ "gate": "H", "target": 2 }]
+  ]
+}

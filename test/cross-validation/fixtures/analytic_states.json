@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "states": [
+    {
+      "name": "bell",
+      "numQubits": 2,
+      "columns": [
+        [{ "gate": "H", "target": 0 }],
+        [{ "gate": "CNOT", "target": 1, "controls": [{ "row": 0, "on": true }] }]
+      ],
+      "expectedAmplitudes": [
+        { "re": 0.7071067811865475, "im": 0 },
+        { "re": 0, "im": 0 },
+        { "re": 0, "im": 0 },
+        { "re": 0.7071067811865475, "im": 0 }
+      ]
+    },
+    {
+      "name": "ghz3",
+      "numQubits": 3,
+      "columns": [
+        [{ "gate": "H", "target": 0 }],
+        [{ "gate": "CNOT", "target": 1, "controls": [{ "row": 0, "on": true }] }],
+        [{ "gate": "CNOT", "target": 2, "controls": [{ "row": 0, "on": true }] }]
+      ],
+      "expectedAmplitudes": [
+        { "re": 0.7071067811865475, "im": 0 },
+        { "re": 0, "im": 0 },
+        { "re": 0, "im": 0 },
+        { "re": 0, "im": 0 },
+        { "re": 0, "im": 0 },
+        { "re": 0, "im": 0 },
+        { "re": 0, "im": 0 },
+        { "re": 0.7071067811865475, "im": 0 }
+      ]
+    },
+    {
+      "name": "qft_zero_2",
+      "numQubits": 2,
+      "columns": [
+        [{ "gate": "H", "target": 0 }],
+        [{ "gate": "Cu1", "target": 0, "controls": [{ "row": 1, "on": true }], "thetaRad": 1.5707963267948966 }],
+        [{ "gate": "H", "target": 1 }]
+      ],
+      "expectedAmplitudes": [
+        { "re": 0.5, "im": 0 },
+        { "re": 0.5, "im": 0 },
+        { "re": 0.5, "im": 0 },
+        { "re": 0.5, "im": 0 }
+      ]
+    }
+  ]
+}
