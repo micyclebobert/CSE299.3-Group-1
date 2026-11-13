@@ -27,3 +27,27 @@
 # A modern browser (Chrome/Firefox/Edge/Safari — any engine
 # with Float64Array + ES2023 support). No other runtime
 # requirement; the app is fully client-side.
+
+# ============================================================
+# External test dependencies (OPTIONAL — pip install, NOT npm)
+# ============================================================
+# These are NOT required for `node --test` to pass. They are
+# used ONLY for opt-in cross-library differential verification:
+#   SimQC bare-function kernels vs. Qiskit/NumPy reference.
+# The Qiskit/NumPy differential pipeline consumes SimQC's
+# canonical v1 JSON circuit over bare Node `stdin`/`stdout` and
+# compares against Qiskit state-vector output.
+#
+# Install:
+#   pip install qiskit numpy
+#
+# Version guidance:
+#   qiskit   >= 1.0   (qiskit-aer for statevector simulation)
+#   numpy    >= 1.26
+#
+# Verification entry point (Python):
+#   python scripts/differential_verify.py < simqc_circuit.json
+#
+# If qiskit/numpy are not installed, `node --test` still passes
+# fully — the differential test suite is gated behind import
+# availability and silently skips when either package is missing.
