@@ -8,7 +8,7 @@
     "node": ">=18"
   },
   "scripts": {
-    "test": "node --test test/",
+    "test": "node --test",
     "test:serializer": "node --test test/serializer.test.js",
     "test:kernel": "node --test test/kernel.test.js",
     "test:differential": "node --test test/differential.test.js"

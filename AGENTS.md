@@ -41,3 +41,8 @@ Summary:
 ```
 
 - **When to log:** Include a summary for all substantial or non-trivial changes. Summary may be omitted for small changes. Logging may be omitted for trivial changes.
+
+
+## Info
+Test runtime is around ~3-4 minutes (dominated by the 21-qubit Shor test)
+Note: Shor's test produces no intermediate output under `node --test` only because the expensive 21-qubit Shor simulations (Shor(21,2), Shor(35,2)) run last and take several minutes, streaming TAP only as each test completes. This is expected; do not treat silence as failure or re-investigate.
