@@ -1,0 +1,110 @@
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{algorithmic}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{url}
+
+\begin{document}
+
+\title{SimQC -- Weekly Progress Report\\}
+\author{
+    \IEEEauthorblockN{Aoutul Nabi Purna\IEEEauthorrefmark{1}, Shishir Dhar\IEEEauthorrefmark{2}, Shihab Sharar\IEEEauthorrefmark{3}, and Md. Iftikhar Alam Hridik\IEEEauthorrefmark{4}}
+    \IEEEauthorblockA{Department of Electrical and Computer Engineering, North South University, Dhaka, Bangladesh}
+    \IEEEauthorblockA{Emails: \{\IEEEauthorrefmark{1}aoutul.purna.241, \IEEEauthorrefmark{2}shishir.dhar.241, \IEEEauthorrefmark{3}shihab.sharar.241, \IEEEauthorrefmark{4}iftikhar.hridik.241\}@northsouth.edu}
+}
+
+\maketitle
+
+\begin{abstract}
+This report outlines Sprint 4 of the SimQC quantum simulator, which introduced independent cross-validation against established reference libraries as a standard part of the testing process. Instead of relying solely on SimQC's own unit tests, every implementation is now compared byte-for-byte or within tight numerical tolerance against independently developed implementations: Node.js's built-in \texttt{crypto} module for SHA-256, Python \texttt{cmath}/NumPy for complex and matrix algebra, and Qiskit for state-vector evolution, measurement, purity, Bloch vectors, and canonical algorithms (Deutsch--Jozsa, Grover, QFT, Shor). A differential CLI pipe harness (\texttt{stdin} $\to$ \texttt{stdout} JSON) drives the Python Qiskit runner, and a fixture library of canonical circuits (Bell, GHZ, QFT, DJ, Grover) anchors each comparison. The sprint concludes with \texttt{node --test} passing 100\%, with Qiskit/NumPy-dependent tests skipping gracefully when unavailable.
+\end{abstract}
+
+\section{Progress Summary}
+During this sprint we implemented the cross-validation infrastructure specified in the Sprint 4 plan. Completed deliverables include:
+
+\begin{enumerate}
+    \item A cross-validation test tree under \texttt{test/cross-validation/} with a 1:1 test per SimQC module, plus canonical v1 JSON fixtures (Bell pair, 3-qubit GHZ, QFT $n=3/4$, Deutsch--Jozsa constant/balanced, Grover $n=2$, analytic states, random circuits across six amplitude profiles).
+
+    \item SHA-256 cross-validation: \texttt{Cache.sha256Hex} compared byte-for-byte against \texttt{Node.js crypto.createHash('sha256')} across empty inputs, random strings up to 2048 characters, binary/surrogate-pair inputs, real circuit JSON, and the cache-key format \texttt{canonicalJson} | \texttt{schemaVersion} | \texttt{promptVersion}.
+
+    \item Complex arithmetic cross-validation against hand-computed analytical values, covering add / subtract / multiply / divide / conjugate / magnitude / phase /\texttt{fromPolar}, including quadrant-correct \texttt{atan2} phase and division-by-zero \texttt{RangeError}.
+
+    \item Matrix algebra cross-validation against NumPy: \texttt{multiply}, \texttt{tensorProduct} (Kronecker), \texttt{conjugateTranspose}, \texttt{isUnitary}, and Frobenius norm on random complex matrices up to $4\times4$ within $10^{-12}$.
+
+    \item State-vector cross-validation against Qiskit \texttt{Statevector}: initialization to $\lvert 0\cdots 0\rangle$, probabilities, and norm for random circuits $n=1\ldots6$ within $10^{-12}$.
+
+    \item Measurement cross-validation: Born-rule collapse and shot histograms matching Qiskit measurement counts within statistical tolerance, without mutating the source state.
+
+    \item Purity and Bloch-vector cross-validation: single-qubit purity $\gamma_q = \mathrm{Tr}(\rho_q^2)$, linear entropy $S_L(q)$, and Bloch coordinates compared against Qiskit partial-trace density-matrix computations for product, Bell, and GHZ states within $10^{-9}$.
+
+    \item A differential CLI pipe harness spawning \texttt{node cli/cli.js}, feeding canonical v1 JSON on \texttt{stdin}, parsing deterministic JSON on \texttt{stdout}, and asserting \texttt{stderr} is empty for well-formed input.
+
+    \item A Python Qiskit differential runner (\texttt{qiskit-differential.py}) reading canonical v1 JSON on \texttt{stdin} and emitting reference state vectors/probabilities on \texttt{stdout} for gates I, X, Y, Z, H, S, T, CNOT, CZ, SWAP, \texttt{Rx}, \texttt{Ry}, \texttt{Rz}, \texttt{Cu1}, and Toffoli, with little-endian row mapping (SimQC row $q$ = Qiskit qubit $q$).
+
+    \item Node tests driving Qiskit comparison: gate-level matrix equality (including bidirectional CNOT swap pairs $\{1,3\},\{5,7\}$ and $\{2,3\},\{6,7\}$ on $n=3$) and algorithm-level comparisons for Bell, GHZ, QFT ($n=1\ldots4$), Deutsch--Jozsa, Grover ($n=2$), and Shor order-finding ($(15,7)$, $(21,2)$, $(35,2)$) within $10^{-12}$ ($n\le8$) / $10^{-9}$ ($n>8$).
+\end{enumerate}
+
+Sprint 4 added no new source modules; all SimQC modules under test were treated as read-only references. M3 (AI subsystem, Shihab Sharar) was assigned the AI feature leaf under Sprint 4 and delivered the \texttt{AI\_INTERFACE.md} contract plus five source modules and their 1:1 tests: \texttt{Cache.js} implements a pure-JS SHA-256 (no Node \texttt{crypto}) with a content-addressed cache keyed by \texttt{SHA-256(canonicalJson | schemaVersion | promptVersion)} and a \texttt{Cache} class (\texttt{get}/\texttt{set}/\texttt{has}/\texttt{computeKey}/\texttt{sha256Hex}); \texttt{AIExplainer.js} builds deterministic prompts from \texttt{Flatten.js} instructions and sparse summaries, calls the Ollama chat API (model \texttt{qwen2.5:3b}) with a template fallback, and caches successful explanations; \texttt{AIBuilder.js} translates natural-language prompts into canonical v1 JSON validated via \texttt{Serializer.fromJson}, with markdown-fence JSON extraction and \texttt{\{ok, circuit, json\}} results; \texttt{IOAnalyzer.js} performs causal input/output analysis over the flattened schedule using \texttt{StepTrace}, grouping instructions by virtual column and tagging input/output-affected columns; \texttt{SparseSummary.js} computes sparse Top-k state summaries with per-qubit marginals (\texttt{rho00}, linear entropy $S_L$) and $\gamma$. All five modules carry 1:1 tests under \texttt{test/ai/\{*\}.test.js} (431 tests pass including \texttt{test/ai/}), supported by \texttt{AI\_INTERFACE.md}, the \texttt{aiplan.md} sprint plan, and the agent implementation log. M4 (bug fixes, Md. Iftikhar Alam Hridik) was assigned critical-bug remediation under Sprint 4 and delivered \texttt{Cache.js} fixes, one-line corrections to \texttt{Bloch.js} and \texttt{Purity.js}, fixes across all five \texttt{test/ai/} test files, README edits, the \texttt{AGENTS.md} update, a \texttt{fix-critical-bugs-verify-tests.md} agent log, a \texttt{fix-test-runner.md} agent log, and the \texttt{package.json} test-script fix (\texttt{node --test} from the repo root) that makes \texttt{node --test} pass in bare environments.
+
+\section{Cross-Validation Methodology}
+Each SimQC module is validated against an independent reference without sharing implementation code:
+\begin{itemize}
+    \item \textbf{SHA-256:} Node.js \texttt{crypto} (built-in, no external install).
+    \item \textbf{Complex/Matrix:} analytical values plus NumPy matrix operations (\texttt{@}, \texttt{np.kron}, conjugate transpose).
+    \item \textbf{State vector / gates / algorithms / measurement / purity / Bloch:} Qiskit \texttt{Statevector} simulation and partial-trace density-matrix computations.
+\end{itemize}
+
+The differential pipe preserves SimQC's canonical v1 JSON as the contract: SimQC emits canonical JSON via \texttt{Serializer.toJson}; the Python runner rebuilds an equivalent Qiskit \texttt{QuantumCircuit} under little-endian row mapping and returns amplitudes/probabilities on \texttt{stdout}. Diagnostics go to \texttt{stderr} only, keeping \texttt{stdout} valid JSON. External references are opt-in: Qiskit/NumPy tests skip gracefully when \texttt{python3} or the libraries are unavailable, so bare \texttt{node --test} passes in any environment.
+
+\section{Differential Validation Results}
+Acceptance criteria from the Sprint 4 plan:
+\begin{itemize}
+    \item \texttt{node --test} passes 100\%; every new cross-validation harness has a 1:1 test.
+    \item SHA-256 matches Node.js \texttt{crypto} byte-for-byte across all random inputs (zero mismatches).
+    \item Matrix operations match NumPy within $10^{-12}$.
+    \item Qiskit differential pipe produces matching state vectors/probabilities for all gate types, Bell, GHZ, QFT, DJ, Grover, and Shor order-finding within $10^{-12}$ ($n\le8$) / $10^{-9}$ ($n>8$).
+    \item Purity/Bloch match Qiskit partial trace within $10^{-9}$; measurement frequencies match Qiskit counts within statistical tolerance.
+    \item No layering violations: \texttt{gates/} imported only by \texttt{main.js}; zero imports between \texttt{debugger/}, \texttt{inspector/}, \texttt{ai/}; \texttt{test/cross-validation/} imports \texttt{src/} only through public APIs.
+\end{itemize}
+
+\noindent
+\textbf{Exit criterion:} differential validation passes for $n\le6$ at $\epsilon\le10^{-12}$, and the CLI produces correct Bell-state probabilities from the fixture JSON.
+
+\section{Next Steps}
+\begin{enumerate}
+    \item Extend cross-validation coverage to additional gate mixtures and deeper random circuits.
+    \item Evaluate adding Cirq or PennyLane as a third reference library using the template in \texttt{test/cross-validation/README.md}.
+    \item Begin Phase 1 of the AI module: local inference via Ollama/llama.cpp under the frozen \texttt{AI\_INTERFACE.md} contract, with \texttt{qwen2.5:3b} as the default development model.
+    \item Explore Worker-thread parallelization of the kernel's block iteration for independent amplitude pairs.
+\end{enumerate}
+
+\section{Risks and Mitigations}
+\begin{enumerate}
+    \item \textbf{External dependency availability:} Qiskit/NumPy are optional; differential tests skip gracefully so \texttt{node --test} never depends on them.
+    \item \textbf{Bit-ordering inconsistencies:} mitigated by little-endian conventions and automated bidirectional CNOT differential tests.
+    \item \textbf{Numerical drift:} accumulated IEEE-754 rounding over deep circuits; mitigated by per-gate norm verification and selective renormalization at the $10^{-9}$ threshold.
+    \item \textbf{Statistical tolerance in measurement tests:} Born-rule histograms converge only with sufficient shots; mitigated by shot-count tuning and tolerance bands.
+\end{enumerate}
+
+\begin{thebibliography}{00}
+
+\bibitem{quirk}
+C.~Gidney, ``Quirk: A drag-and-drop quantum circuit simulator that runs in your browser,'' GitHub repository, Apache-2.0 license. [Online]. Available: \url{https://github.com/strilanc/quirk}
+
+\bibitem{qiskit}
+A.~Javadi-Abhari \emph{et~al.}, ``Qiskit: An open-source framework for quantum computing,'' IBM, 2017. [Online]. Available: \url{https://qiskit.org}
+
+\bibitem{numpy}
+C.~R.~Harris \emph{et~al.}, ``Array programming with NumPy,'' \emph{Nature}, vol. 585, pp. 357--362, 2020. [Online]. Available: \url{https://numpy.org}
+
+\bibitem{deraedt}
+H.~De~Raedt and K.~Michielsen, ``Computational methods for simulating quantum computers,'' in \emph{Quantum Computing and Quantum Bits in Mesoscopic Systems}. Hoboken, NJ, USA: Wiley, 2004.
+
+\end{thebibliography}
+
+\end{document}
