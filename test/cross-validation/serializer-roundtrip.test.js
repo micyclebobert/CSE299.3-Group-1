@@ -25,7 +25,7 @@ import { Circuit } from '../../src/circuit/Circuit.js';
 import { GateColumn } from '../../src/circuit/GateColumn.js';
 import { Gate } from '../../src/circuit/GateColumn.js';
 
-const FIXTURE_DIR = new URL('./fixtures', import.meta.url).pathname;
+const FIXTURE_DIR = new URL('./fixtures/', import.meta.url);
 
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                           */
