@@ -146,7 +146,7 @@ function collectFixtures() {
   const files = readdirSync(FIXTURE_DIR).filter((f) => f.endsWith('.json'));
 
   for (const file of files) {
-    const path = new URL(file, FIXTURE_DIR).pathname;
+    const path = new URL(`./fixtures/${file}`, import.meta.url).pathname;
     let content;
     try {
       content = readFileSync(path, 'utf-8');
