@@ -95,6 +95,31 @@ function runQiskit(circuitJson) {
   return JSON.parse(result.stdout);
 }
 
+/**
+ * Run Qiskit in marginals mode for the given qubit rows.
+ * Returns the marginals array from the Python script.
+ */
+function runQiskitMarginals(circuitJson, rows) {
+  const rowArg = rows.join(",");
+  const result = spawnSync(
+    "python3",
+    [QISKIT_SCRIPT, rowArg],
+    {
+      input: circuitJson,
+      encoding: "utf-8",
+      maxBuffer: 1024 * 1024,
+    },
+  );
+
+  if (result.status !== 0) {
+    throw new Error(
+      `qiskit-differential.py (marginals) exited with code ${result.status}: ${result.stderr}`,
+    );
+  }
+
+  return JSON.parse(result.stdout).marginals;
+}
+
 function simqcEvaluate(circuitJson) {
   const circuit = fromJson(circuitJson);
   const instructions = flattenCircuit(circuit);
@@ -363,10 +388,5 @@ if (!python3Available || !qiskitAvailable) {
       const simqcState = simqcEvaluate(circuitJson);
       compareAmplitudes(qiskitOut, simqcState, numQubits, 1e-12);
     });
-  }
-
-  function runSimQC(circuit) {
-    const circuitJson = JSON.stringify(circuit);
-    return simqcEvaluate(circuitJson);
   }
 }

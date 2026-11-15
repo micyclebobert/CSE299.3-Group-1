@@ -7,7 +7,14 @@ M2 — Qiskit/NumPy differential verification runner.
 Reads canonical v1 circuit JSON from stdin, builds an equivalent Qiskit
 QuantumCircuit with explicit little-endian qubit-row mapping
 (SimQC row q == Qiskit qubit q), runs Statevector simulation, and writes
-deterministic JSON {qubits, probabilities[], amplitudes[]} to stdout.
+deterministic JSON to stdout.
+
+Default mode (no args):
+  stdout = {qubits, probabilities[], amplitudes[]}
+
+Marginals mode (second arg = comma-separated qubit rows):
+  python3 qiskit-differential.py "0,1,2" < circuit.json
+  stdout = {qubits, marginals: [{row, rho00, rho11, gamma, S_L}, ...]}
 
 Diagnostics/warnings go to stderr only so stdout stays valid JSON.
 
@@ -27,7 +34,7 @@ import sys
 try:
     import numpy as np
     from qiskit import QuantumCircuit
-    from qiskit.quantum_info import Statevector
+    from qiskit.quantum_info import Statevector, partial_trace
 except ImportError as exc:
     sys.stderr.write(
         f"qiskit-differential: required package not installed: {exc}\n"
@@ -274,11 +281,58 @@ def main():
         amplitudes.append({"re": float(amp.real), "im": float(amp.imag)})
         probabilities.append(float(amp.real * amp.real + amp.imag * amp.imag))
 
-    output = {
-        "qubits": num_qubits,
-        "probabilities": probabilities,
-        "amplitudes": amplitudes,
-    }
+    # Optional marginals mode: second CLI arg = comma-separated qubit rows.
+    # When provided, compute per-qubit single-qubit reduced density matrix
+    # marginals via Qiskit partial_trace and output those instead of the full
+    # statevector.
+    marginals_arg = sys.argv[1] if len(sys.argv) > 1 else None
+    if marginals_arg:
+        try:
+            marginal_rows = [int(x.strip()) for x in marginals_arg.split(",")]
+        except ValueError as exc:
+            sys.stderr.write(
+                f"qiskit-differential: invalid marginals argument '{marginals_arg}': {exc}\n"
+            )
+            sys.exit(2)
+
+        marginals_out = []
+        for q in marginal_rows:
+            if not isinstance(q, int) or q < 0 or q >= num_qubits:
+                sys.stderr.write(
+                    f"qiskit-differential: marginal qubit {q} out of range [0, {num_qubits})\n"
+                )
+                sys.exit(2)
+
+            # Trace out all qubits except q to get the single-qubit reduced
+            # density matrix for row q.
+            trace_out = [i for i in range(num_qubits) if i != q]
+            reduced = partial_trace(statevector, trace_out)
+            data = np.asarray(reduced.data)
+
+            rho00 = float(data[0, 0].real)
+            rho11 = float(data[1, 1].real)
+            rho01 = complex(data[0, 1])
+            gamma = rho00 * rho00 + rho11 * rho11 + 2.0 * (rho01.real ** 2 + rho01.imag ** 2)
+            S_L = 1.0 - gamma
+
+            marginals_out.append({
+                "row": q,
+                "rho00": rho00,
+                "rho11": rho11,
+                "gamma": gamma,
+                "S_L": S_L,
+            })
+
+        output = {
+            "qubits": num_qubits,
+            "marginals": marginals_out,
+        }
+    else:
+        output = {
+            "qubits": num_qubits,
+            "probabilities": probabilities,
+            "amplitudes": amplitudes,
+        }
 
     sys.stdout.write(json.dumps(output, None, 2) + "\n")
 
