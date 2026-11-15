@@ -203,6 +203,19 @@ export class Cache {
   static computeKey(canonicalJson, schemaVersion, promptVersion) {
     return cacheKey(canonicalJson, schemaVersion, promptVersion);
   }
+
+  /**
+   * Compute SHA-256 of a string, returning lowercase hex.
+   * Pure JS; no Node `crypto` dependency. Exposed as a static method so
+   * cross-validation harnesses (e.g. M1.1) can compare against
+   * Node.js `crypto.createHash('sha256')` byte-for-byte.
+   *
+   * @param {string} message
+   * @returns {string} 64-char lowercase hex digest
+   */
+  static sha256Hex(message) {
+    return sha256Hex(message);
+  }
 }
 
 export { sha256Hex };
