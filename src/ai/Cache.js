@@ -70,8 +70,7 @@ function sha256Hex(message) {
 
   // Pad: append 0x80, then zeros until length in bits ≡ 448 mod 512,
   // then append the original 64-bit big-endian bit length.
-  const paddedLenBits =
-    Math.floor((bitLength + 1 + 64 + 512 - 1 - 448) / 512) * 512 + 448 + 64;
+  const paddedLenBits = Math.ceil((bitLength + 1 + 64) / 512) * 512;
   const paddedLenBytes = paddedLenBits / 8;
   const padded = new Uint8Array(paddedLenBytes);
   padded.set(bytes);
@@ -202,6 +201,19 @@ export class Cache {
    */
   static computeKey(canonicalJson, schemaVersion, promptVersion) {
     return cacheKey(canonicalJson, schemaVersion, promptVersion);
+  }
+
+  /**
+   * Compute SHA-256 of a string, returning lowercase hex.
+   * Pure JS; no Node `crypto` dependency. Exposed as a static method so
+   * cross-validation harnesses (e.g. M1.1) can compare against
+   * Node.js `crypto.createHash('sha256')` byte-for-byte.
+   *
+   * @param {string} message
+   * @returns {string} 64-char lowercase hex digest
+   */
+  static sha256Hex(message) {
+    return sha256Hex(message);
   }
 }
 

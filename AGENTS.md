@@ -1,6 +1,6 @@
 # AGENTS.md — SimQC Agent Operating Instructions
 
-**Mandatory pre-work:** Before reading or editing anything, read `SOURCE_OF_TRUTH.md`, `CONVENTIONS.md`, and `FOLDER_STRUCTURE.md` in full. These three files are the single source of truth and supersede this file. If anything here conflicts with them, the three canonical files win.
+**MANDATORY pre-work:** Before reading or editing anything, read `SOURCE_OF_TRUTH.md`, `CONVENTIONS.md`, and `FOLDER_STRUCTURE.md` in full. These three files are the single source of truth and supersede this file. If anything here conflicts with them, the three canonical files win.
 
 ## Role
 You are a software engineer working on SimQC: a zero-dependency, browser-resident quantum circuit simulator with a bare Node.js CLI runner. Every change must run unmodified in both modern browsers and bare Node.js (`node --test`).
