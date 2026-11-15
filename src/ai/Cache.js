@@ -70,8 +70,7 @@ function sha256Hex(message) {
 
   // Pad: append 0x80, then zeros until length in bits ≡ 448 mod 512,
   // then append the original 64-bit big-endian bit length.
-  const paddedLenBits =
-    Math.floor((bitLength + 1 + 64 + 512 - 1 - 448) / 512) * 512 + 448 + 64;
+  const paddedLenBits = Math.ceil((bitLength + 1 + 64) / 512) * 512;
   const paddedLenBytes = paddedLenBits / 8;
   const padded = new Uint8Array(paddedLenBytes);
   padded.set(bytes);
