@@ -178,11 +178,11 @@ test('serializer: toJson output has canonical key order', () => {
       }),
       new GateColumn({
         gates: [
-          new Gate({
-            name: 'CNOT',
-            target: 1,
-            controls: [{ row: 0, on: true }],
-          }),
+          new Gate({ name: 'CNOT', target: 1, controls: [{ row: 0, on: true }] }),
+        ],
+      }),
+      new GateColumn({
+        gates: [
           new Gate({
             name: 'X',
             target: 2,
@@ -307,7 +307,15 @@ test('serializer: round-trip preserves parameterized gates', () => {
         gates: [
           new Gate({ name: 'Rx', target: 0, thetaRad: 0.7 }),
           new Gate({ name: 'Ry', target: 1, thetaRad: -1.3 }),
+        ],
+      }),
+      new GateColumn({
+        gates: [
           new Gate({ name: 'Rz', target: 0, thetaRad: 3.14 }),
+        ],
+      }),
+      new GateColumn({
+        gates: [
           new Gate({
             name: 'Cu1',
             target: 1,
@@ -324,11 +332,15 @@ test('serializer: round-trip preserves parameterized gates', () => {
   ok(parsed.isEqualTo(circuit), 'parameterized gates round-trip isEqualTo');
 
   const doc = JSON.parse(json);
-  const gates = doc.columns[0];
-  strictEqual(gates[0].thetaRad, 0.7, 'Rx thetaRad');
-  strictEqual(gates[1].thetaRad, -1.3, 'Ry thetaRad');
-  strictEqual(gates[2].thetaRad, 3.14, 'Rz thetaRad');
-  strictEqual(gates[3].thetaRad, 2.5, 'Cu1 thetaRad');
+  const thetas = [];
+  for (const col of doc.columns) {
+    for (const gateDesc of col) {
+      if (gateDesc.thetaRad !== undefined) {
+        thetas.push(gateDesc.thetaRad);
+      }
+    }
+  }
+  deepEqual(thetas, [0.7, -1.3, 3.14, 2.5], 'parameterized thetaRad values');
 });
 
 test('serializer: fromJson rejects unexpected fields', () => {
@@ -342,7 +354,7 @@ test('serializer: fromJson rejects unexpected fields', () => {
     ],
   });
 
-  assert.throws(() => fromJson(badJson), /unexpected field/);
+  throws(() => fromJson(badJson), /unexpected field/);
 });
 
 test('serializer: round-trip of manually constructed multi-qubit circuit', () => {
