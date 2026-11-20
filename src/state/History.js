@@ -35,4 +35,21 @@ export class History {
   current() {
     return this._index >= 0 ? this._stack[this._index] : null;
   }
+
+  canUndo() {
+    return this._index > 0;
+  }
+
+  canRedo() {
+    return this._index < this._stack.length - 1;
+  }
+
+  size() {
+    return this._stack.length;
+  }
+
+  clear() {
+    this._stack = [];
+    this._index = -1;
+  }
 }
