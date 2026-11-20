@@ -106,7 +106,7 @@ def main():
         bloch.append({"row": q, "x": x, "y": y, "z": z})
 
     output = {"qubits": num_qubits, "bloch": bloch}
-    sys.stdout.write(json.dumps(output, None, 2) + "\n")
+    sys.stdout.write(json.dumps(output, indent=2) + "\n")
 
 
 if __name__ == "__main__":

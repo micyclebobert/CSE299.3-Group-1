@@ -86,7 +86,7 @@ def _apply_2q(circuit, c, t, gate_name, theta=None):
     elif gate_name == "SWAP":
         circuit.swap(c, t)
     elif gate_name == "Cu1":
-        circuit.cu1(theta, c, t)
+        circuit.cp(theta, c, t)
     else:
         raise ValueError(f"Unknown two-qubit gate: {gate_name}")
 
@@ -214,7 +214,16 @@ def main():
                     )
                     sys.exit(2)
                 _apply_1q(qc, target, gate_name, theta=float(theta))
-            elif gate_name in ("CNOT", "CZ", "SWAP", "Cu1"):
+            elif gate_name == "SWAP":
+                target2 = gate_entry.get("target2")
+                if not isinstance(target2, int) or target2 < 0 or target2 >= num_qubits:
+                    sys.stderr.write(
+                        f"qiskit-differential: column {col_idx} gate 'SWAP' "
+                        f"has invalid target2 {target2}\n"
+                    )
+                    sys.exit(2)
+                qc.swap(target, target2)
+            elif gate_name in ("CNOT", "CZ", "Cu1"):
                 if len(controls) != 1:
                     sys.stderr.write(
                         f"qiskit-differential: column {col_idx} gate '{gate_name}' "
@@ -334,7 +343,7 @@ def main():
             "amplitudes": amplitudes,
         }
 
-    sys.stdout.write(json.dumps(output, None, 2) + "\n")
+    sys.stdout.write(json.dumps(output, indent=2) + "\n")
 
 
 if __name__ == "__main__":

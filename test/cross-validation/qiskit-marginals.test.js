@@ -15,41 +15,16 @@
 import { test } from 'node:test';
 import { strictEqual, ok } from 'assert';
 import { spawnSync } from 'child_process';
+import { resolvePythonEnv } from './python_env.js';
 import { fromJson } from '../../src/circuit/Serializer.js';
 import { flattenCircuit, scheduleColumns } from '../../src/circuit/Flatten.js';
 import { marginals } from '../../src/core/SparseSummary.js';
 import { evaluate } from '../../src/sim/Evaluator.js';
+// Seed the GateRegistry so evaluate() can resolve gate IDs.
+import '../../src/main.js';
 
 const QISKIT_SCRIPT = new URL('./qiskit-differential.py', import.meta.url)
   .pathname;
-
-/* ------------------------------------------------------------------ */
-/*  Availability checks                                               */
-/* ------------------------------------------------------------------ */
-
-function isPython3Available() {
-  try {
-    const result = spawnSync('python3', ['--version'], {
-      stdio: 'ignore',
-    });
-    return result.status === 0;
-  } catch {
-    return false;
-  }
-}
-
-function isQiskitAvailable() {
-  try {
-    const result = spawnSync(
-      'python3',
-      ['-c', 'import qiskit; import numpy'],
-      { stdio: 'ignore' },
-    );
-    return result.status === 0;
-  } catch {
-    return false;
-  }
-}
 
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                           */
@@ -72,7 +47,7 @@ function gate(gateName, target, extra = {}) {
 function runQiskitMarginals(circuitJson, rows) {
   const rowArg = rows.join(",");
   const result = spawnSync(
-    "python3",
+    python,
     [QISKIT_SCRIPT, rowArg],
     {
       input: circuitJson,
@@ -101,10 +76,11 @@ function simqcEvaluate(circuitJson) {
 /*  Tests                                                             */
 /* ------------------------------------------------------------------ */
 
-const python3Available = isPython3Available();
-const qiskitAvailable = python3Available && isQiskitAvailable();
+const pythonEnv = resolvePythonEnv({ packages: ['qiskit', 'numpy'] });
+const pythonAvailable = pythonEnv !== null;
+const python = pythonEnv?.python;
 
-if (!python3Available || !qiskitAvailable) {
+if (!pythonAvailable) {
   test.todo(
     'marginals vs Qiskit partial trace (python3/Qiskit unavailable)',
   );

@@ -346,6 +346,26 @@ cd <REPO>
 
 **Ollama note:** when a web page calls a local Ollama server, Ollama must be configured to accept the page's origin (`OLLAMA_ORIGINS`).
 
+**Optional: Python cross-validation (Qiskit / NumPy)**
+
+The differential tests in `test/cross-validation/` compare SimQC against Qiskit
+and NumPy. They are skipped automatically when Python/Qiskit is unavailable, so
+`node --test` passes without them. To enable:
+
+```bash
+# 1. Create the venv (or run scripts/ensure_venv.sh)
+python3 -m venv .simqc-venv
+.simqc-venv/bin/pip install --upgrade pip
+.simqc-venv/bin/pip install numpy qiskit
+
+# 2. Run the cross-validation suite
+node --test test/cross-validation/
+```
+
+The venv location and Python executable are resolved by `test/cross-validation/python_env.js`
+with this priority: explicit argument > `SIMQC_VENV` / `SIMQC_PYTHON` environment
+variables > defaults (`.simqc-venv`, `python3`).
+
 ---
 
 ## 📁 Repository structure

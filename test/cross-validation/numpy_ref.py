@@ -40,7 +40,10 @@ except ImportError as exc:
 
 def matrix_from_json(data):
     """Convert nested [[re, im], ...] to a numpy complex128 array."""
-    return np.array(data, dtype=np.complex128)
+    return np.array(
+        [[complex(cell[0], cell[1]) for cell in row] for row in data],
+        dtype=np.complex128,
+    )
 
 
 def matrix_to_json(mat):

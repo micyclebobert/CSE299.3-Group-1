@@ -23,6 +23,7 @@
 import { test } from 'node:test';
 import { strictEqual, ok } from 'assert';
 import { spawnSync } from 'child_process';
+import { resolvePythonEnv } from './python_env.js';
 import { StateVector } from '../../src/core/StateVector.js';
 import { Purity } from '../../src/inspector/Purity.js';
 import { fromJson } from '../../src/circuit/Serializer.js';
@@ -57,7 +58,7 @@ function makeCircuit(numQubits, columns) {
 }
 
 function runQiskit(circuitJson) {
-  const result = spawnSync('python3', [QISKIT_SCRIPT], {
+  const result = spawnSync(python, [QISKIT_SCRIPT], {
     input: circuitJson,
     encoding: 'utf-8',
     maxBuffer: 1024 * 1024,
@@ -71,7 +72,7 @@ function runQiskit(circuitJson) {
 }
 
 function runPartialTrace(amplitudes, numQubits) {
-  const result = spawnSync('python3', [PARTIAL_TRACE_SCRIPT], {
+  const result = spawnSync(python, [PARTIAL_TRACE_SCRIPT], {
     input: JSON.stringify({ amplitudes, numQubits }),
     encoding: 'utf-8',
     maxBuffer: 1024 * 1024,
@@ -126,30 +127,9 @@ function assertPuritiesClose(actual, expected, label) {
 /*  Availability checks                                               */
 /* ------------------------------------------------------------------ */
 
-function isPython3Available() {
-  try {
-    const result = spawnSync('python3', ['--version'], { stdio: 'ignore' });
-    return result.status === 0;
-  } catch {
-    return false;
-  }
-}
-
-function isQiskitAvailable() {
-  try {
-    const result = spawnSync(
-      'python3',
-      ['-c', 'import qiskit; import numpy'],
-      { stdio: 'ignore' },
-    );
-    return result.status === 0;
-  } catch {
-    return false;
-  }
-}
-
-const python3Available = isPython3Available();
-const qiskitAvailable = python3Available && isQiskitAvailable();
+const pythonEnv = resolvePythonEnv({ packages: ['qiskit', 'numpy'] });
+const pythonAvailable = pythonEnv !== null;
+const python = pythonEnv?.python;
 
 /* ------------------------------------------------------------------ */
 /*  1. Always-run: analytical purity tests                            */
@@ -253,7 +233,7 @@ test('purity: 3-qubit GHZ via SimQC -> gamma=0.5 on all rows', () => {
 /*  2. Qiskit reference (skipped when python3/Qiskit unavailable)     */
 /* ------------------------------------------------------------------ */
 
-if (!python3Available || !qiskitAvailable) {
+if (!pythonAvailable) {
   test.todo('Purity vs Qiskit (python3/Qiskit unavailable)');
 } else {
   /* Product state |00> -> Qiskit partial trace purity = 1.0 on both rows */

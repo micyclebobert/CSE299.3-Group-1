@@ -14,6 +14,7 @@
 import { test } from 'node:test';
 import { strictEqual, ok, throws } from 'assert';
 import { spawnSync } from 'child_process';
+import { resolvePythonEnv } from './python_env.js';
 import { Complex } from '../../src/core/Complex.js';
 
 const REF_SCRIPT = new URL('./cmath_ref.py', import.meta.url).pathname;
@@ -46,17 +47,9 @@ function randComplex() {
 /*  Python cmath reference                                            */
 /* ------------------------------------------------------------------ */
 
-function isPython3Available() {
-  try {
-    const result = spawnSync('python3', ['--version'], { stdio: 'ignore' });
-    return result.status === 0;
-  } catch {
-    return false;
-  }
-}
 
 function runRef(ops) {
-  const result = spawnSync('python3', [REF_SCRIPT], {
+  const result = spawnSync(python, [REF_SCRIPT], {
     input: JSON.stringify({ ops }),
     encoding: 'utf-8',
     maxBuffer: 16 * 1024 * 1024,
@@ -216,9 +209,11 @@ test('Complex scale throws TypeError for non-number scalar', () => {
 /*  2. Python cmath reference (skipped when python3 unavailable)      */
 /* ----------------------------------------------------------------------------- */
 
-const python3Available = isPython3Available();
+const pythonEnv = resolvePythonEnv({ packages: [] });
+const pythonAvailable = pythonEnv !== null;
+const python = pythonEnv?.python;
 
-if (!python3Available) {
+if (!pythonAvailable) {
   test.todo('Complex vs Python cmath (python3 unavailable)');
 } else {
   test('Complex vs cmath: random add/sub/multiply/divide', () => {

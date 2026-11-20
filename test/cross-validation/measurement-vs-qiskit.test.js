@@ -25,6 +25,7 @@
 import { test } from 'node:test';
 import { strictEqual, ok, throws } from 'assert';
 import { spawnSync } from 'child_process';
+import { resolvePythonEnv } from './python_env.js';
 import { StateVector } from '../../src/core/StateVector.js';
 import { collapse, sampleHistogram } from '../../src/measurement/measurement.js';
 import { fromJson } from '../../src/circuit/Serializer.js';
@@ -80,7 +81,7 @@ function makeCircuit(numQubits, columns) {
 }
 
 function runQiskit(circuitJson) {
-  const result = spawnSync('python3', [QISKIT_SCRIPT], {
+  const result = spawnSync(python, [QISKIT_SCRIPT], {
     input: circuitJson,
     encoding: 'utf-8',
     maxBuffer: 1024 * 1024,
@@ -134,30 +135,9 @@ function assertHistogramMatches(hist, qiskitProbs, label) {
 /*  Availability checks                                               */
 /* ------------------------------------------------------------------ */
 
-function isPython3Available() {
-  try {
-    const result = spawnSync('python3', ['--version'], { stdio: 'ignore' });
-    return result.status === 0;
-  } catch {
-    return false;
-  }
-}
-
-function isQiskitAvailable() {
-  try {
-    const result = spawnSync(
-      'python3',
-      ['-c', 'import qiskit; import numpy'],
-      { stdio: 'ignore' },
-    );
-    return result.status === 0;
-  } catch {
-    return false;
-  }
-}
-
-const python3Available = isPython3Available();
-const qiskitAvailable = python3Available && isQiskitAvailable();
+const pythonEnv = resolvePythonEnv({ packages: ['qiskit', 'numpy'] });
+const pythonAvailable = pythonEnv !== null;
+const python = pythonEnv?.python;
 
 /* ------------------------------------------------------------------ */
 /*  1. Always-run: structural & analytical Born-rule tests            */
@@ -267,7 +247,7 @@ test('Born sampling of a non-uniform superposition matches analytical probs', ()
 /*  2. Qiskit reference (skipped when python3/Qiskit unavailable)     */
 /* ------------------------------------------------------------------ */
 
-if (!python3Available || !qiskitAvailable) {
+if (!pythonAvailable) {
   test.todo('Measurement vs Qiskit (python3/Qiskit unavailable)');
 } else {
   /* Bell state: H(0) -> CNOT(0->1) => probs [0.5, 0, 0, 0.5] */

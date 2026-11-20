@@ -19,12 +19,12 @@ import { Circuit } from '../circuit/Circuit.js';
  */
 export function deutschJozsa(n, oracleGates) {
   const columns = [];
-  // H on all input qubits, X then H on ancilla
+  // H on all input qubits, then X then H on the ancilla (sequential columns).
   const initGates = [];
   for (let q = 0; q < n; q++) initGates.push(new Gate({ name: 'H', target: q }));
-  initGates.push(new Gate({ name: 'X', target: n }));
-  initGates.push(new Gate({ name: 'H', target: n }));
   columns.push(new GateColumn({ gates: initGates }));
+  columns.push(new GateColumn({ gates: [new Gate({ name: 'X', target: n })] }));
+  columns.push(new GateColumn({ gates: [new Gate({ name: 'H', target: n })] }));
   // Oracle
   columns.push(new GateColumn({ gates: oracleGates }));
   // H on input qubits

@@ -80,7 +80,7 @@ def main():
 
     try:
         state = Statevector(
-            [complex(a[0], a[1]) for a in amplitudes]
+            [complex(a["re"], a["im"]) for a in amplitudes]
         )
     except Exception as exc:
         sys.stderr.write(f"partial_trace_ref: failed to build Statevector: {exc}\n")
@@ -102,7 +102,7 @@ def main():
         purities.append(purity)
 
     output = {"qubits": num_qubits, "purities": purities}
-    sys.stdout.write(json.dumps(output, None, 2) + "\n")
+    sys.stdout.write(json.dumps(output, indent=2) + "\n")
 
 
 if __name__ == "__main__":

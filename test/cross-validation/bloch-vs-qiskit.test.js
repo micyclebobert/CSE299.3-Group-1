@@ -27,6 +27,7 @@
 import { test } from 'node:test';
 import { strictEqual, ok } from 'assert';
 import { spawnSync } from 'child_process';
+import { resolvePythonEnv } from './python_env.js';
 import { StateVector } from '../../src/core/StateVector.js';
 import { Bloch } from '../../src/inspector/Bloch.js';
 import { fromJson } from '../../src/circuit/Serializer.js';
@@ -59,7 +60,7 @@ function makeCircuit(numQubits, columns) {
 }
 
 function runBloch(amplitudes, numQubits) {
-  const result = spawnSync('python3', [BLOCH_SCRIPT], {
+  const result = spawnSync(python, [BLOCH_SCRIPT], {
     input: JSON.stringify({ amplitudes, numQubits }),
     encoding: 'utf-8',
     maxBuffer: 1024 * 1024,
@@ -106,34 +107,9 @@ function assertBlochClose(actual, expected, label) {
   }
 }
 
-/* ------------------------------------------------------------------ */
-/*  Availability checks                                               */
-/* ------------------------------------------------------------------ */
-
-function isPython3Available() {
-  try {
-    const result = spawnSync('python3', ['--version'], { stdio: 'ignore' });
-    return result.status === 0;
-  } catch {
-    return false;
-  }
-}
-
-function isQiskitAvailable() {
-  try {
-    const result = spawnSync(
-      'python3',
-      ['-c', 'import qiskit; import numpy'],
-      { stdio: 'ignore' },
-    );
-    return result.status === 0;
-  } catch {
-    return false;
-  }
-}
-
-const python3Available = isPython3Available();
-const qiskitAvailable = python3Available && isQiskitAvailable();
+const pythonEnv = resolvePythonEnv({ packages: ['qiskit', 'numpy'] });
+const pythonAvailable = pythonEnv !== null;
+const python = pythonEnv?.python;
 
 /* ------------------------------------------------------------------ */
 /*  1. Always-run: analytical Bloch tests                             */
@@ -201,7 +177,7 @@ test('bloch: |-i> single qubit -> (0, -1, 0)', () => {
 /*  2. Qiskit reference (skipped when python3/Qiskit unavailable)     */
 /* ------------------------------------------------------------------ */
 
-if (!python3Available || !qiskitAvailable) {
+if (!pythonAvailable) {
   test.todo('Bloch vs Qiskit (python3/Qiskit unavailable)');
 } else {
   /* Bell state n=2 -> each qubit maximally mixed -> Bloch = (0, 0, 0) */

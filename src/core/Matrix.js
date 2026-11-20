@@ -110,9 +110,9 @@ export class Matrix {
 
     conjugateTranspose() {
         const result = [];
-        for (let i = 0; i < this.rows; i++) {
+        for (let i = 0; i < this.cols; i++) {
             const row = [];
-            for (let j = 0; j < this.cols; j++) {
+            for (let j = 0; j < this.rows; j++) {
                 row.push(this.data[j][i].conjugate());
             }
             result.push(row);

@@ -17,48 +17,23 @@
 import { test } from 'node:test';
 import { strictEqual, ok } from 'assert';
 import { spawnSync } from 'child_process';
+import { resolvePythonEnv } from './python_env.js';
 import { fromJson, toJson } from '../../src/circuit/Serializer.js';
 import { flattenCircuit, scheduleColumns } from '../../src/circuit/Flatten.js';
 import { StepTrace } from '../../src/sim/StepTrace.js';
+// Seed the GateRegistry so StepTrace can resolve gate IDs.
+import '../../src/main.js';
 import { qft } from '../../src/algorithms/qft.js';
 
 const QISKIT_SCRIPT = new URL('./qiskit-differential.py', import.meta.url)
   .pathname;
 
 /* ------------------------------------------------------------------ */
-/*  Availability checks                                               */
-/* ------------------------------------------------------------------ */
-
-function isPython3Available() {
-  try {
-    const result = spawnSync('python3', ['--version'], {
-      stdio: 'ignore',
-    });
-    return result.status === 0;
-  } catch {
-    return false;
-  }
-}
-
-function isQiskitAvailable() {
-  try {
-    const result = spawnSync(
-      'python3',
-      ['-c', 'import qiskit; import numpy'],
-      { stdio: 'ignore' },
-    );
-    return result.status === 0;
-  } catch {
-    return false;
-  }
-}
-
-/* ------------------------------------------------------------------ */
 /*  Helpers                                                           */
 /* ------------------------------------------------------------------ */
 
 function runQiskit(circuitJson) {
-  const result = spawnSync('python3', [QISKIT_SCRIPT], {
+  const result = spawnSync(python, [QISKIT_SCRIPT], {
     input: circuitJson,
     encoding: 'utf-8',
     maxBuffer: 1024 * 1024,
@@ -139,10 +114,11 @@ function prefixCircuitJson(numQubits, execCols, endCol) {
 /*  Tests                                                             */
 /* ------------------------------------------------------------------ */
 
-const python3Available = isPython3Available();
-const qiskitAvailable = python3Available && isQiskitAvailable();
+const pythonEnv = resolvePythonEnv({ packages: ['qiskit', 'numpy'] });
+const pythonAvailable = pythonEnv !== null;
+const python = pythonEnv?.python;
 
-if (!python3Available || !qiskitAvailable) {
+if (!pythonAvailable) {
   test.todo(
     'StepTrace vs Qiskit step-by-step (python3/Qiskit unavailable)',
   );

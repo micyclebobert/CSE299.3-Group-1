@@ -19,11 +19,14 @@
 import { test } from 'node:test';
 import { strictEqual, ok } from 'assert';
 import { spawnSync } from 'child_process';
+import { resolvePythonEnv } from './python_env.js';
 import { readFileSync, readdirSync } from 'fs';
 import { fromJson, toJson } from '../../src/circuit/Serializer.js';
 import { flattenCircuit, scheduleColumns } from '../../src/circuit/Flatten.js';
 import { Gate } from '../../src/circuit/GateColumn.js';
 import { evaluate } from '../../src/sim/Evaluator.js';
+// Seed the GateRegistry so evaluate() can resolve gate IDs.
+import '../../src/main.js';
 import { qft } from '../../src/algorithms/qft.js';
 import { deutschJozsa } from '../../src/algorithms/dj.js';
 import { grover } from '../../src/algorithms/grover.js';
@@ -32,34 +35,6 @@ import { shor } from '../../src/algorithms/shor.js';
 const FIXTURE_DIR = new URL('./fixtures', import.meta.url).pathname;
 const QISKIT_SCRIPT = new URL('./qiskit-differential.py', import.meta.url)
   .pathname;
-
-/* ------------------------------------------------------------------ */
-/*  Availability checks                                               */
-/* ------------------------------------------------------------------ */
-
-function isPython3Available() {
-  try {
-    const result = spawnSync('python3', ['--version'], {
-      stdio: 'ignore',
-    });
-    return result.status === 0;
-  } catch {
-    return false;
-  }
-}
-
-function isQiskitAvailable() {
-  try {
-    const result = spawnSync(
-      'python3',
-      ['-c', 'import qiskit; import numpy'],
-      { stdio: 'ignore' },
-    );
-    return result.status === 0;
-  } catch {
-    return false;
-  }
-}
 
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                           */
@@ -80,7 +55,7 @@ function gate(gateName, target, extra = {}) {
 }
 
 function runQiskit(circuitJson) {
-  const result = spawnSync('python3', [QISKIT_SCRIPT], {
+  const result = spawnSync(python, [QISKIT_SCRIPT], {
     input: circuitJson,
     encoding: 'utf-8',
     maxBuffer: 1024 * 1024,
@@ -102,7 +77,7 @@ function runQiskit(circuitJson) {
 function runQiskitMarginals(circuitJson, rows) {
   const rowArg = rows.join(",");
   const result = spawnSync(
-    "python3",
+    python,
     [QISKIT_SCRIPT, rowArg],
     {
       input: circuitJson,
@@ -125,6 +100,10 @@ function simqcEvaluate(circuitJson) {
   const instructions = flattenCircuit(circuit);
   const schedule = scheduleColumns(instructions);
   return evaluate(schedule, circuit.numQubits);
+}
+
+function runSimQC(circuit) {
+  return simqcEvaluate(JSON.stringify(circuit));
 }
 
 function compareAmplitudes(qiskitOut, simqcState, numQubits, tolerance) {
@@ -205,11 +184,12 @@ function collectFixtures() {
 /*  Tests                                                             */
 /* ------------------------------------------------------------------ */
 
-const python3Available = isPython3Available();
-const qiskitAvailable = python3Available && isQiskitAvailable();
+const pythonEnv = resolvePythonEnv({ packages: ['qiskit', 'numpy'] });
+const pythonAvailable = pythonEnv !== null;
+const python = pythonEnv?.python;
 const fixtures = collectFixtures();
 
-if (!python3Available || !qiskitAvailable) {
+if (!pythonAvailable) {
   test.todo(
     'qiskit vs simqc: differential comparison (python3/Qiskit unavailable)',
   );
@@ -246,7 +226,7 @@ if (!python3Available || !qiskitAvailable) {
       [gate('CNOT', 1, { controls: [{ row: 0, on: true }] })],
     ]);
     const label = 'Bell state n=2';
-    const qiskitOut = runQiskit(circuit);
+    const qiskitOut = runQiskit(JSON.stringify(circuit));
     const simqcState = runSimQC(circuit);
     compareAmplitudes(qiskitOut, simqcState, 2, 1e-12);
 
@@ -268,7 +248,7 @@ if (!python3Available || !qiskitAvailable) {
       [gate('CNOT', 2, { controls: [{ row: 0, on: true }] })],
     ]);
     const label = 'GHZ state n=3';
-    const qiskitOut = runQiskit(circuit);
+    const qiskitOut = runQiskit(JSON.stringify(circuit));
     const simqcState = runSimQC(circuit);
     compareAmplitudes(qiskitOut, simqcState, 3, 1e-12);
 

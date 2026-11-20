@@ -11,9 +11,22 @@ SimQC itself has **zero JavaScript dependencies** and `node --test` passes
 without any of the following installed. These are only needed for the
 cross-validation suite in `test/cross-validation/`.
 
+The easiest way to get a working Python environment is the provided
+`scripts/ensure_venv.sh` script:
+
+```bash
+# Creates .simqc-venv/, upgrades pip, and installs numpy + qiskit
+# (binary-only wheels, to avoid compiling from source).
+./scripts/ensure_venv.sh
+```
+
+Or create the venv manually:
+
 ```bash
 # Python packages (install via pip, not npm)
-pip install qiskit numpy
+python3 -m venv .simqc-venv
+.simqc-venv/bin/pip install --upgrade pip
+.simqc-venv/bin/pip install numpy qiskit
 ```
 
 **Version guidance:**
@@ -25,6 +38,15 @@ pip install qiskit numpy
 ```bash
 python3 -c "import qiskit; import numpy; print('OK')"
 ```
+
+### Customizing the Python / venv location
+
+SimQC auto-detects Python via `test/cross-validation/python_env.js`. Resolution
+priority (highest first):
+
+1. An explicit `venv` / `python` argument passed to `resolvePythonEnv()`
+2. The `SIMQC_VENV` / `SIMQC_PYTHON` environment variables
+3. Defaults: venv `.simqc-venv`, python `python3`
 
 ## Running the Differential Suite
 
@@ -42,13 +64,17 @@ node --test test/cross-validation/serializer-roundtrip.test.js
 
 ## Skip-When-Unavailable Behavior
 
-Every cross-validation test that requires Qiskit/NumPy performs availability
-checks at module load time:
+Every cross-validation test that requires Qiskit/NumPy resolves its Python
+executable at module load time through the unified helper
+`test/cross-validation/python_env.js` (`resolvePythonEnv`). The helper:
 
-1. **`python3` availability** — spawns `python3 --version`
-2. **`qiskit`/`numpy` availability** — spawns `python3 -c "import qiskit; import numpy"`
+1. Resolves a venv (`<venv>/bin/python`, or `Scripts/python.exe` on Windows)
+   or a bare `python3` from PATH, per the priority above.
+2. Spawns it with `import qiskit; import numpy` (or just `import numpy` for
+   NumPy-only comparisons) and uses it only if all required modules import OK.
+3. Returns `null` when nothing usable is found.
 
-If either check fails, the test is registered via `test.todo()` instead of
+If resolution fails, the test is registered via `test.todo()` instead of
 `test()`. A `todo` test is reported as skipped (not failed) by Node's test
 runner, so **`node --test` passes in bare environments** where Qiskit is not
 installed.

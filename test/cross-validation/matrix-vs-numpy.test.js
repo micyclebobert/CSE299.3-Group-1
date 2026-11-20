@@ -18,6 +18,7 @@
 import { test } from 'node:test';
 import { strictEqual, ok } from 'assert';
 import { spawnSync } from 'child_process';
+import { resolvePythonEnv } from './python_env.js';
 import { Complex } from '../../src/core/Complex.js';
 import { Matrix } from '../../src/core/Matrix.js';
 
@@ -93,34 +94,10 @@ function assertMatricesClose(actual, expected, label) {
   }
 }
 
-/* ------------------------------------------------------------------ */
-/*  Python numpy reference                                            */
-/* ------------------------------------------------------------------ */
 
-function isPython3Available() {
-  try {
-    const result = spawnSync('python3', ['--version'], { stdio: 'ignore' });
-    return result.status === 0;
-  } catch {
-    return false;
-  }
-}
-
-function isNumpyAvailable() {
-  try {
-    const result = spawnSync(
-      'python3',
-      ['-c', 'import numpy'],
-      { stdio: 'ignore' },
-    );
-    return result.status === 0;
-  } catch {
-    return false;
-  }
-}
 
 function runRef(ops) {
-  const result = spawnSync('python3', [REF_SCRIPT], {
+  const result = spawnSync(python, [REF_SCRIPT], {
     input: JSON.stringify({ ops }),
     encoding: 'utf-8',
     maxBuffer: 16 * 1024 * 1024,
@@ -133,8 +110,9 @@ function runRef(ops) {
   return JSON.parse(result.stdout).results;
 }
 
-const python3Available = isPython3Available();
-const numpyAvailable = python3Available && isNumpyAvailable();
+const pythonEnv = resolvePythonEnv({ packages: ['numpy'] });
+const pythonAvailable = pythonEnv !== null;
+const python = pythonEnv?.python;
 
 /* ------------------------------------------------------------------ */
 /*  1. Hand-computed analytical values (always run)                   */
@@ -240,7 +218,7 @@ test('Matrix frobeniusNormSquared analytical', () => {
 /*  2. Python NumPy reference (skipped when python3/numpy unavailable) */
 /* ------------------------------------------------------------------ */
 
-if (!python3Available || !numpyAvailable) {
+if (!pythonAvailable) {
   test.todo('Matrix vs NumPy (python3/numpy unavailable)');
 } else {
   test('Matrix vs NumPy: random multiply, tensorProduct, conjugateTranspose, isUnitary, frobeniusNormSquared', () => {

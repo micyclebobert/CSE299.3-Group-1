@@ -22,40 +22,15 @@
 import { test } from 'node:test';
 import { strictEqual, ok } from 'assert';
 import { spawnSync } from 'child_process';
+import { resolvePythonEnv } from './python_env.js';
 import { fromJson } from '../../src/circuit/Serializer.js';
 import { flattenCircuit, scheduleColumns } from '../../src/circuit/Flatten.js';
 import { evaluate } from '../../src/sim/Evaluator.js';
+// Seed the GateRegistry so evaluate() can resolve gate IDs.
+import '../../src/main.js';
 
 const QISKIT_SCRIPT = new URL('./qiskit-differential.py', import.meta.url)
   .pathname;
-
-/* ------------------------------------------------------------------ */
-/*  Availability checks                                               */
-/* ------------------------------------------------------------------ */
-
-function isPython3Available() {
-  try {
-    const result = spawnSync('python3', ['--version'], {
-      stdio: 'ignore',
-    });
-    return result.status === 0;
-  } catch {
-    return false;
-  }
-}
-
-function isQiskitAvailable() {
-  try {
-    const result = spawnSync(
-      'python3',
-      ['-c', 'import qiskit; import numpy'],
-      { stdio: 'ignore' },
-    );
-    return result.status === 0;
-  } catch {
-    return false;
-  }
-}
 
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                           */
@@ -76,15 +51,11 @@ function gate(gateName, target, extra = {}) {
 }
 
 function runQiskit(circuit) {
-  const result = spawnSync(
-    'python3',
-    [QISKIT_SCRIPT],
-    {
-      input: JSON.stringify(circuit),
-      encoding: 'utf-8',
-      maxBuffer: 1024 * 1024,
-    },
-  );
+  const result = spawnSync(python, [QISKIT_SCRIPT], {
+    input: JSON.stringify(circuit),
+    encoding: 'utf-8',
+    maxBuffer: 1024 * 1024,
+  });
   if (result.status !== 0) {
     throw new Error(
       `qiskit-differential.py exited with code ${result.status}: ${result.stderr}`,
@@ -133,10 +104,11 @@ function assertStateVectorsMatch(qiskitOut, simqcState, numQubits, label) {
 /*  Availability gate                                                 */
 /* ------------------------------------------------------------------ */
 
-const python3Available = isPython3Available();
-const qiskitAvailable = python3Available && isQiskitAvailable();
+const pythonEnv = resolvePythonEnv({ packages: ['qiskit', 'numpy'] });
+const pythonAvailable = pythonEnv !== null;
+const python = pythonEnv?.python;
 
-if (!python3Available || !qiskitAvailable) {
+if (!pythonAvailable) {
   test.todo(
     'qiskit gate matrix: differential comparison (python3/Qiskit unavailable)',
   );
