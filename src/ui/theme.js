@@ -1,12 +1,3 @@
-// =============================================================================
-// src/ui/theme.js
-// -----------------------------------------------------------------------------
-// Visual theme constants for the VS Code-style dark-mode UI.
-// Layer-local config: no root Config.js god file.
-//
-// DOM-free: pure constants only.
-// =============================================================================
-
 export const theme = {
   background: '#1e1e1e',
   foreground: '#d4d4d4',
@@ -14,4 +5,8 @@ export const theme = {
   panel: '#252526',
   border: '#333333',
   entanglementGlow: '#00ff88',
+  rowSeparator: '#2d2d2d',
+  gateFill: '#3c3c3c',
+  gateStroke: '#555555',
+  textMuted: '#858585',
 };
