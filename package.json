@@ -9,8 +9,24 @@
   },
   "scripts": {
     "test": "node --test",
-    "test:serializer": "node --test test/serializer.test.js",
-    "test:kernel": "node --test test/kernel.test.js",
+    "test:engine": "node --test \"test/core/*.test.js\" \"test/circuit/*.test.js\" \"test/sim/*.test.js\"",
+    "test:catalog": "node --test \"test/gates/*.test.js\" \"test/algorithms/*.test.js\"",
+    "test:interface": "node --test \"test/canvas/*.test.js\" \"test/editor/*.test.js\" \"test/ui/*.test.js\"",
+    "test:features": "node --test \"test/debugger/*.test.js\" \"test/state/*.test.js\" \"test/ai/*.test.js\"",
+    "test:validation": "node --test \"test/measurement/*.test.js\" \"test/cross-validation/*.test.js\" test/differential.test.js",
+    "test:core": "node --test \"test/core/*.test.js\"",
+    "test:circuit": "node --test \"test/circuit/*.test.js\"",
+    "test:sim": "node --test \"test/sim/*.test.js\"",
+    "test:gates": "node --test \"test/gates/*.test.js\"",
+    "test:algorithms": "node --test \"test/algorithms/*.test.js\"",
+    "test:measurement": "node --test \"test/measurement/*.test.js\"",
+    "test:canvas": "node --test \"test/canvas/*.test.js\"",
+    "test:editor": "node --test \"test/editor/*.test.js\"",
+    "test:ui": "node --test \"test/ui/*.test.js\"",
+    "test:debugger": "node --test \"test/debugger/*.test.js\"",
+    "test:state": "node --test \"test/state/*.test.js\"",
+    "test:ai": "node --test \"test/ai/*.test.js\"",
+    "test:cross-validation": "node --test \"test/cross-validation/*.test.js\"",
     "test:differential": "node --test test/differential.test.js"
   }
 }

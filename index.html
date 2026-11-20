@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SimQC — Quantum Circuit Simulator</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; overflow: hidden; font-family: system-ui, -apple-system, sans-serif; }
+    body { background: #1e1e1e; color: #d4d4d4; }
+    #app { display: grid; grid-template-areas: "left main right" "bottom bottom bottom"; grid-template-rows: 1fr 140px; grid-template-columns: 260px 1fr 260px; height: 100vh; gap: 0; }
+    .panel { background: #252526; border: 1px solid #333333; display: flex; flex-direction: column; overflow: hidden; padding: 8px; gap: 8px; }
+    .panel.left { grid-area: left; }
+    .panel.main { grid-area: main; position: relative; background: #1e1e1e; }
+    .panel.right { grid-area: right; }
+    .panel.bottom { grid-area: bottom; }
+    .panel-title { font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: #858585; border-bottom: 1px solid #333333; padding-bottom: 4px; margin-bottom: 6px; }
+    canvas#circuit { display: block; background: #1e1e1e; }
+    .muted { color: #858585; font-size: 13px; line-height: 1.4; }
+    h1 { font-size: 18px; margin-bottom: 8px; color: #007acc; }
+    button { background: #3c3c3c; border: 1px solid #555555; color: #d4d4d4; padding: 6px 10px; font-size: 13px; cursor: pointer; border-radius: 3px; }
+    button:hover { background: #4c4c4c; border-color: #007acc; }
+    .note { font-size: 12px; color: #858585; margin-top: 8px; }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <aside class="panel left">
+      <div class="panel-title">Gate Palette</div>
+      <div id="gate-palette" class="muted">Loading gates…</div>
+    </aside>
+    <section class="panel main">
+      <div class="panel-title">Circuit Editor</div>
+      <canvas id="circuit" width="680" height="660"></canvas>
+    </section>
+    <aside class="panel right">
+      <div class="panel-title">Code & AI</div>
+      <div id="code-view" class="muted">{} </div>
+    </aside>
+    <aside class="panel bottom">
+      <div class="panel-title">Inspector</div>
+      <div id="inspector" class="muted">No state yet.</div>
+    </aside>
+  </div>
+
+  <script type="module">
+    import { main } from './src/main.js';
+    import { Circuit } from './src/circuit/Circuit.js';
+    import { GateColumn } from './src/circuit/GateColumn.js';
+    import { Gate } from './src/circuit/GateColumn.js';
+    import { renderCircuit } from './src/canvas/Renderer.js';
+    import { panelModel, catalog, theme } from './src/main.js';
+
+    // Build a sample Bell circuit: H(0), CNOT(0->1)
+    const bell = new Circuit({
+      numQubits: 2,
+      columns: [
+        new GateColumn({ gates: [new Gate({ name: 'H', target: 0 })] }),
+        new GateColumn({ gates: [new Gate({ name: 'CNOT', target: 1, controls: [{ row: 0, on: true }] })] }),
+      ],
+    });
+
+    // Render into the main canvas
+    const canvas = document.getElementById('circuit');
+    const ctx = canvas.getContext('2d');
+
+    function draw() {
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, rect.width, rect.height);
+
+      const drawing = renderCircuit(bell, theme);
+      for (const g of drawing.gates) {
+        if (g.kind === 'label') {
+          ctx.fillStyle = g.color;
+          ctx.font = '13px system-ui';
+          ctx.textAlign = 'right';
+          ctx.fillText(g.text, g.x - 6, g.y + 26);
+        } else if (g.kind === 'line') {
+          ctx.strokeStyle = g.color;
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(g.x1, g.y1);
+          ctx.lineTo(g.x2, g.y2);
+          ctx.stroke();
+        } else if (g.kind === 'gate') {
+          ctx.fillStyle = g.color;
+          ctx.strokeStyle = g.stroke;
+          ctx.lineWidth = 1.5;
+          ctx.fillRect(g.x, g.y, g.w, g.h);
+          ctx.strokeRect(g.x, g.y, g.w, g.h);
+          ctx.fillStyle = theme.foreground;
+          ctx.font = 'bold 14px system-ui';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(g.gateId, g.x + g.w / 2, g.y + g.h / 2);
+        } else if (g.kind === 'glow') {
+          ctx.shadowColor = g.color;
+          ctx.shadowBlur = 8;
+          ctx.fillStyle = g.color;
+          ctx.fillRect(g.x, g.y, g.w, g.h);
+          ctx.shadowBlur = 0;
+        }
+      }
+    }
+
+    // Wire up panels
+    const paletteEl = document.getElementById('gate-palette');
+    const codeEl = document.getElementById('code-view');
+    const inspectorEl = document.getElementById('inspector');
+
+    paletteEl.textContent = '';
+    for (const entry of catalog) {
+      const btn = document.createElement('button');
+      btn.textContent = entry.label;
+      btn.title = entry.category;
+      paletteEl.appendChild(btn);
+    }
+
+    codeEl.textContent = JSON.stringify(
+      { format: 'simqc-circuit', version: 1, bitOrder: 'little-endian', numQubits: 2, columns: bell.columns.map(c => c.gates.map(g => g.toDescriptor())) },
+      null, 2
+    );
+    inspectorEl.textContent = 'Bell state rendered: H(0) then CNOT(0→1). Probabilities: |00⟩=0.5, |11⟩=0.5';
+
+    draw();
+    window.addEventListener('resize', draw);
+  </script>
+</body>
+</html>

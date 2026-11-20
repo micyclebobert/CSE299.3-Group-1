@@ -6,11 +6,12 @@
 
 Built from first principles in JavaScript. No quantum hardware. No Qiskit, Cirq or PennyLane. No server.
 
-![Stage](https://img.shields.io/badge/stage-proposal-orange)
+🔗 **Live demo:** https://simqc.netlify.app
+
 ![Language](https://img.shields.io/badge/language-JavaScript-F7DF1E?logo=javascript&logoColor=black)
 ![Runs](https://img.shields.io/badge/runs-in%20the%20browser-blue)
-![Course](https://img.shields.io/badge/NSU-CSE%20299-green)
-![Group](https://img.shields.io/badge/section%203-group%201-lightgrey)
+![Netlify Status](https://api.netlify.com/api/v1/badges/9dcf6c6f-9d2f-4070-9ad9-84a073f36abc/deploy-status)
+![Tests](https://github.com/micyclebobert/CSE299.3-Group-1/actions/workflows/test.yml/badge.svg)
 
 </div>
 
@@ -320,22 +321,23 @@ const result = circuit.run({ shots: 1000 });
 
 ## 🚀 Getting started
 
-> The commands below are the **intended workflow**. Update them once the code exists.
+No `npm install` is required — SimQC has zero runtime dependencies.
 
 ```bash
 # 1. Clone
 git clone https://github.com/<ORG-OR-USER>/<REPO>.git
 cd <REPO>
 
-# 2. Install the tools listed in requirements.txt
-#    (for example a Node.js version for the test runner)
+# 2. Run the test suite (bare Node.js, no packages)
+npm test
+# or: node --test
 
-# 3. Run the test suite
-#    <TEST COMMAND>
-
-# 4. Open the simulator
-#    Open index.html in a browser, or serve the folder locally:
-#    <LOCAL SERVE COMMAND>
+# 3. Serve locally and open the simulator
+#    ES modules are blocked from file:// by browser CORS, so a local
+#    HTTP server is required:
+python3 -m http.server 8000
+# or: npx -y http-server -p 8000
+# then open: http://localhost:8000
 ```
 
 **Requirements**
