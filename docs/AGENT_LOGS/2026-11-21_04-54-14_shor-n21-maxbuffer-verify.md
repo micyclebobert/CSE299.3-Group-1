@@ -1,0 +1,4 @@
+Title: Fix Shor N=21 Qiskit differential maxBuffer transport failure
+
+Summary:
+Re-applied the spawnSync maxBuffer fix in runQiskit (and runQiskitMarginals) of test/cross-validation/qiskit-vs-simqc.test.js from 1024 * 1024 to 64 * 1024 * 1024. The failing test 'algorithm: Shor N=21, a=2 matches Qiskit' failed with 'qiskit-differential.py exited with code null' because the Python child wrote ~29MB of state-vector JSON to stdout, exceeding the 1MB maxBuffer; Node SIGTERMed the child and surfaced status null. Raising maxBuffer to 64MB lets the full Qiskit differential output through. Verification: targeted run with name pattern 'Shor N=21' -> 1/1 pass; Shor pattern across the cross-validation file -> 3/3 pass (N=15, N=21, N=35). Full suite: 697 pass / 3 fail, remaining failures are pre-existing Deutsch-Jozsa balanced cross-validation assertions. Source and Python code untouched; fix is test-side only.

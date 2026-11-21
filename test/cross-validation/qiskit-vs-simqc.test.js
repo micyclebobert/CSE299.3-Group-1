@@ -58,7 +58,7 @@ function runQiskit(circuitJson) {
   const result = spawnSync(python, [QISKIT_SCRIPT], {
     input: circuitJson,
     encoding: 'utf-8',
-    maxBuffer: 1024 * 1024,
+    maxBuffer: 64 * 1024 * 1024,
   });
 
   if (result.status !== 0) {
@@ -80,10 +80,10 @@ function runQiskitMarginals(circuitJson, rows) {
     python,
     [QISKIT_SCRIPT, rowArg],
     {
-      input: circuitJson,
-      encoding: "utf-8",
-      maxBuffer: 1024 * 1024,
-    },
+        input: circuitJson,
+        encoding: "utf-8",
+        maxBuffer: 64 * 1024 * 1024,
+      },
   );
 
   if (result.status !== 0) {
@@ -284,10 +284,9 @@ if (!pythonAvailable) {
       const simqcState = simqcEvaluate(circuitJson);
       compareAmplitudes(qiskitOut, simqcState, n + 1, 1e-12);
 
-      // All input qubits measure |0...0>: probability mass on indices 0 and 1
-      // (ancilla free, all input bits = 0). For n+1 qubits, indices 0 and 1
-      // correspond to |0...0⟩|0⟩ and |0...0⟩|1⟩.
-      const pInputZero = simqcState.probability(0) + simqcState.probability(1);
+      // All input qubits measure |0...0>: probability mass on basis indices
+      // {0, 2^n} (ancilla at row n free, all input bits = 0).
+      const pInputZero = simqcState.probability(0) + simqcState.probability(1 << n);
       ok(
         Math.abs(pInputZero - 1.0) < 1e-9,
         `${label}: input qubits not all |0⟩ (mass=${pInputZero})`,
@@ -305,37 +304,30 @@ if (!pythonAvailable) {
       const simqcState = simqcEvaluate(circuitJson);
       compareAmplitudes(qiskitOut, simqcState, n + 1, 1e-12);
 
-      // At least one input qubit measures non-zero (balanced -> not |0...0>)
-      let allZero = true;
-      for (let i = 1; i < 1 << n; i++) {
-        if (simqcState.probability(i) > 0.5) {
-          allZero = false;
-          break;
-        }
-      }
-      ok(!allZero, `DJ balanced n=${n}: not all-zero as expected`);
+      // Balanced f(x) = x_0: input register must not be all-zero.
+      const pInputZero = simqcState.probability(0) + simqcState.probability(1 << n);
+      ok(
+        pInputZero < 1.0 - 1e-9,
+        `DJ balanced n=${n}: not all-zero as expected (mass=${pInputZero})`,
+      );
     });
   }
 
   // Grover n=2: mark |11>, one iteration, peak at |11>
   test('algorithm: Grover n=2 matches Qiskit', () => {
     const oracleGates = [
-      gate('X', 0),
-      gate('X', 1),
-      gate('CZ', 1, { controls: [{ row: 0, on: true }] }),
-      gate('X', 0),
-      gate('X', 1),
+      new Gate({ name: 'CZ', target: 1, controls: [{ row: 0, on: true }] }),
     ];
     const diffusionGates = [
-      gate('H', 0),
-      gate('H', 1),
-      gate('X', 0),
-      gate('X', 1),
-      gate('CZ', 1, { controls: [{ row: 0, on: true }] }),
-      gate('X', 0),
-      gate('X', 1),
-      gate('H', 0),
-      gate('H', 1),
+      new Gate({ name: 'H', target: 0 }),
+      new Gate({ name: 'H', target: 1 }),
+      new Gate({ name: 'X', target: 0 }),
+      new Gate({ name: 'X', target: 1 }),
+      new Gate({ name: 'CZ', target: 1, controls: [{ row: 0, on: true }] }),
+      new Gate({ name: 'X', target: 0 }),
+      new Gate({ name: 'X', target: 1 }),
+      new Gate({ name: 'H', target: 0 }),
+      new Gate({ name: 'H', target: 1 }),
     ];
     const groverCircuit = grover(2, oracleGates, diffusionGates, 1);
     const circuitJson = toJson(groverCircuit);
