@@ -1,12 +1,35 @@
-export const theme = {
-  background: '#1e1e1e',
-  foreground: '#d4d4d4',
-  accent: '#007acc',
+export const theme = Object.freeze({
+  background: '#181818',
   panel: '#252526',
-  border: '#333333',
-  entanglementGlow: '#00ff88',
-  rowSeparator: '#2d2d2d',
-  gateFill: '#3c3c3c',
+  panelRaised: '#2d2d2d',
+  foreground: '#d4d4d4',
+  textMuted: '#a6a6a6',
+  border: '#3c3c3c',
+  borderStrong: '#555555',
+  accent: '#4daafc',
+  accentHover: '#75beff',
+  accentContrast: '#101010',
+  focus: '#75beff',
+  selection: '#264f78',
+  control: '#3a3d41',
+  controlHover: '#45494e',
+  gateFill: '#3a3d41',
   gateStroke: '#555555',
-  textMuted: '#858585',
-};
+  rowSeparator: '#2d2d2d',
+  entanglementGlow: '#00e6a4',
+  phaseAccent: '#c586c0',
+  entropyAccent: '#d7ba7d',
+  success: '#89d185',
+  warning: '#cca700',
+  danger: '#f48771',
+});
+
+function toKebabCase(name) {
+  return name.replace(/[A-Z]/g, (character) => `-${character.toLowerCase()}`);
+}
+
+export const themeCssVariables = Object.freeze(
+  Object.fromEntries(
+    Object.entries(theme).map(([name, value]) => [`--simqc-${toKebabCase(name)}`, value]),
+  ),
+);

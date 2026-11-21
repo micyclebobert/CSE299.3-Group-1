@@ -5,22 +5,31 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SimQC — Quantum Circuit Simulator</title>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; margin: 0; padding: 0; scrollbar-color: var(--simqc-border-strong) var(--simqc-panel); }
     html, body { height: 100%; overflow: hidden; font-family: system-ui, -apple-system, sans-serif; }
-    body { background: #1e1e1e; color: #d4d4d4; }
+    body { background: var(--simqc-background); color: var(--simqc-foreground); }
     #app { display: grid; grid-template-areas: "left main right" "bottom bottom bottom"; grid-template-rows: 1fr 140px; grid-template-columns: 260px 1fr 260px; height: 100vh; gap: 0; }
-    .panel { background: #252526; border: 1px solid #333333; display: flex; flex-direction: column; overflow: hidden; padding: 8px; gap: 8px; }
+    .panel { background: var(--simqc-panel); border: 1px solid var(--simqc-border); display: flex; flex-direction: column; overflow: hidden; padding: 8px; gap: 8px; }
     .panel.left { grid-area: left; }
-    .panel.main { grid-area: main; position: relative; background: #1e1e1e; }
+    .panel.main { grid-area: main; position: relative; background: var(--simqc-background); }
     .panel.right { grid-area: right; }
     .panel.bottom { grid-area: bottom; }
-    .panel-title { font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: #858585; border-bottom: 1px solid #333333; padding-bottom: 4px; margin-bottom: 6px; }
-    canvas#circuit { display: block; background: #1e1e1e; }
-    .muted { color: #858585; font-size: 13px; line-height: 1.4; }
-    h1 { font-size: 18px; margin-bottom: 8px; color: #007acc; }
-    button { background: #3c3c3c; border: 1px solid #555555; color: #d4d4d4; padding: 6px 10px; font-size: 13px; cursor: pointer; border-radius: 3px; }
-    button:hover { background: #4c4c4c; border-color: #007acc; }
-    .note { font-size: 12px; color: #858585; margin-top: 8px; }
+    .panel-title { font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--simqc-text-muted); border-bottom: 1px solid var(--simqc-border); padding-bottom: 4px; margin-bottom: 6px; }
+    canvas#circuit { display: block; background: var(--simqc-background); }
+    .muted { color: var(--simqc-text-muted); font-size: 13px; line-height: 1.4; }
+    h1 { font-size: 18px; margin-bottom: 8px; color: var(--simqc-accent); }
+    button { background: var(--simqc-control); border: 1px solid var(--simqc-border-strong); color: var(--simqc-foreground); padding: 6px 10px; font: inherit; font-size: 13px; cursor: pointer; border-radius: 3px; }
+    button:hover { background: var(--simqc-control-hover); border-color: var(--simqc-accent-hover); }
+    button:active { background: var(--simqc-accent); border-color: var(--simqc-accent); color: var(--simqc-accent-contrast); }
+    button:focus-visible { outline: 2px solid var(--simqc-focus); outline-offset: 2px; }
+    button:disabled { color: var(--simqc-text-muted); border-color: var(--simqc-border); cursor: not-allowed; opacity: 0.65; }
+    a { color: var(--simqc-accent); }
+    ::selection { background: var(--simqc-selection); color: var(--simqc-foreground); }
+    #gate-palette { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+    #code-view, #inspector { background: var(--simqc-panel-raised); border: 1px solid var(--simqc-border); border-radius: 3px; padding: 8px; overflow: auto; }
+    #code-view { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
+    .note { font-size: 12px; color: var(--simqc-text-muted); margin-top: 8px; }
   </style>
 </head>
 <body>
@@ -48,7 +57,7 @@
     import { GateColumn } from './src/circuit/GateColumn.js';
     import { Gate } from './src/circuit/GateColumn.js';
     import { renderCircuit } from './src/canvas/Renderer.js';
-    import { panelModel, catalog, theme } from './src/main.js';
+    import { panelModel, catalog, theme, themeCssVariables } from './src/main.js';
 
     // Build a sample Bell circuit: H(0), CNOT(0->1)
     const bell = new Circuit({
@@ -62,6 +71,10 @@
     // Render into the main canvas
     const canvas = document.getElementById('circuit');
     const ctx = canvas.getContext('2d');
+
+    for (const [name, value] of Object.entries(themeCssVariables)) {
+      document.documentElement.style.setProperty(name, value);
+    }
 
     function draw() {
       const dpr = window.devicePixelRatio || 1;

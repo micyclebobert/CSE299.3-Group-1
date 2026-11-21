@@ -26,7 +26,7 @@ import { Cu1, Rx, Ry, Rz } from './gates/param.js';
 // ---------------------------------------------------------------------------
 
 import { PanelModel, PanelRegion, PANEL_LEFT, PANEL_MAIN, PANEL_RIGHT, PANEL_BOTTOM } from './ui/panels.js';
-import { theme } from './ui/theme.js';
+import { theme, themeCssVariables } from './ui/theme.js';
 import { Interaction } from './editor/Interaction.js';
 import { gateCatalog, CATEGORY_CORE, CATEGORY_EXTENSIONS } from './editor/gatePalette.js';
 import { History } from './state/History.js';
@@ -89,6 +89,6 @@ export { listGates, getGate, getFixedGate, getParameterizedGate } from './circui
 // ---------------------------------------------------------------------------
 
 export { panelModel, history, interaction, catalog };
-export { theme, CATEGORY_CORE, CATEGORY_EXTENSIONS };
+export { theme, themeCssVariables, CATEGORY_CORE, CATEGORY_EXTENSIONS };
 export { PHASE_IDLE, PHASE_PICKED, PHASE_DRAGGING } from './editor/Interaction.js';
 export { snapCell } from './editor/Interaction.js';
