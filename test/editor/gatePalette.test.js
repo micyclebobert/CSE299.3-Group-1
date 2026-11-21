@@ -45,10 +45,10 @@ test('gateCatalog returns the same frozen array as GATE_CATALOG', () => {
   strictEqual(gateCatalog(), GATE_CATALOG);
 });
 
-test('Core category contains I, X, Y, Z, H, S, T (all fixed, non-parameterized)', () => {
+test('Core category contains I, X, Y, Z, H, S, T, CNOT, CZ, SWAP, Toffoli (all fixed, non-parameterized)', () => {
   const core = GATE_CATALOG.filter((e) => e.category === CATEGORY_CORE);
   const names = core.map((e) => e.name).sort();
-  deepStrictEqual(names, ['H', 'I', 'S', 'T', 'X', 'Y', 'Z']);
+  deepStrictEqual(names, ['CNOT', 'CZ', 'H', 'I', 'S', 'SWAP', 'T', 'Toffoli', 'X', 'Y', 'Z']);
   for (const entry of core) {
     strictEqual(entry.parameterized, false);
   }
@@ -76,7 +76,7 @@ test('categoryNames returns all categories present in the catalog', () => {
 test('gatesByCategory groups entries by category', () => {
   const byCat = gatesByCategory();
   ok(byCat instanceof Map);
-  strictEqual(byCat.get(CATEGORY_CORE).length, 7);
+  strictEqual(byCat.get(CATEGORY_CORE).length, 11);
   strictEqual(byCat.get(CATEGORY_EXTENSIONS).length, 4);
   strictEqual(byCat.get(CATEGORY_SUBCIRCUITS), undefined);
 });
@@ -90,10 +90,15 @@ test('findGate returns the entry for a registered name', () => {
   const rx = findGate('Rx');
   ok(rx !== null);
   strictEqual(rx.defaultTheta, Math.PI / 2);
+  const cnot = findGate('CNOT');
+  ok(cnot !== null);
+  strictEqual(cnot.name, 'CNOT');
+  strictEqual(cnot.category, CATEGORY_CORE);
+  strictEqual(cnot.arity, 2);
+  strictEqual(cnot.controls, 1);
 });
 
 test('findGate returns null for an unknown gate name', () => {
-  strictEqual(findGate('CNOT'), null);
   strictEqual(findGate('Nope'), null);
 });
 

@@ -9,14 +9,14 @@
     * { box-sizing: border-box; margin: 0; padding: 0; scrollbar-color: var(--simqc-border-strong) var(--simqc-panel); }
     html, body { height: 100%; overflow: hidden; font-family: system-ui, -apple-system, sans-serif; }
     body { background: var(--simqc-background); color: var(--simqc-foreground); }
-    #app { display: grid; grid-template-areas: "left main right" "bottom bottom bottom"; grid-template-rows: 1fr 140px; grid-template-columns: 260px 1fr 260px; height: 100vh; gap: 0; }
+    #app { display: grid; grid-template-areas: "left main right" "bottom bottom bottom"; grid-template-rows: 1fr 150px; grid-template-columns: 260px 1fr 260px; height: 100vh; gap: 0; }
     .panel { background: var(--simqc-panel); border: 1px solid var(--simqc-border); display: flex; flex-direction: column; overflow: hidden; padding: 8px; gap: 8px; }
     .panel.left { grid-area: left; }
-    .panel.main { grid-area: main; position: relative; background: var(--simqc-background); }
+    .panel.main { grid-area: main; position: relative; background: var(--simqc-background); overflow: auto; }
     .panel.right { grid-area: right; }
-    .panel.bottom { grid-area: bottom; }
-    .panel-title { font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--simqc-text-muted); border-bottom: 1px solid var(--simqc-border); padding-bottom: 4px; margin-bottom: 6px; }
-    canvas#circuit { display: block; background: var(--simqc-background); }
+    .panel.bottom { grid-area: bottom; overflow-y: auto; }
+    .panel-title { font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--simqc-text-muted); border-bottom: 1px solid var(--simqc-border); padding-bottom: 4px; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; }
+    canvas#circuit { display: block; width: 100%; height: 100%; background: var(--simqc-background); }
     .muted { color: var(--simqc-text-muted); font-size: 13px; line-height: 1.4; }
     h1 { font-size: 18px; margin-bottom: 8px; color: var(--simqc-accent); }
     button { background: var(--simqc-control); border: 1px solid var(--simqc-border-strong); color: var(--simqc-foreground); padding: 6px 10px; font: inherit; font-size: 13px; cursor: pointer; border-radius: 3px; }
@@ -26,10 +26,23 @@
     button:disabled { color: var(--simqc-text-muted); border-color: var(--simqc-border); cursor: not-allowed; opacity: 0.65; }
     a { color: var(--simqc-accent); }
     ::selection { background: var(--simqc-selection); color: var(--simqc-foreground); }
-    #gate-palette { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+    #gate-palette { display: flex; flex-direction: column; gap: 8px; overflow-y: auto; }
+    .palette-row { display: contents; }
     #code-view, #inspector { background: var(--simqc-panel-raised); border: 1px solid var(--simqc-border); border-radius: 3px; padding: 8px; overflow: auto; }
-    #code-view { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
+    #code-view { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12px; }
     .note { font-size: 12px; color: var(--simqc-text-muted); margin-top: 8px; }
+    .toolbar { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
+    .toolbar-label { font-size: 11px; color: var(--simqc-text-muted); margin-right: 6px; align-self: center; }
+    .tab-strip { display: flex; gap: 2px; margin-bottom: 6px; border-bottom: 1px solid var(--simqc-border); padding-bottom: 4px; }
+    .tab { background: var(--simqc-control); border: 1px solid var(--simqc-border-strong); color: var(--simqc-text-muted); padding: 4px 8px; font-size: 12px; cursor: pointer; border-radius: 3px 3px 0 0; border-bottom: none; }
+    .tab.active { background: var(--simqc-panel-raised); color: var(--simqc-foreground); border-bottom: 2px solid var(--simqc-accent); margin-bottom: -1px; }
+    .tab:hover:not(.active) { background: var(--simqc-control-hover); }
+    .field { display: flex; align-items: center; gap: 6px; font-size: 12px; margin-bottom: 6px; }
+    .field input { background: var(--simqc-control); border: 1px solid var(--simqc-border-strong); color: var(--simqc-foreground); padding: 2px 6px; font: inherit; font-size: 12px; border-radius: 3px; width: 60px; }
+    .status { font-size: 11px; color: var(--simqc-text-muted); margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--simqc-border); min-height: 14px; }
+    textarea { width: 100%; height: 140px; background: var(--simqc-panel-raised); border: 1px solid var(--simqc-border); border-radius: 3px; color: var(--simqc-foreground); font: inherit; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12px; padding: 6px; resize: vertical; }
+    .row { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; flex-wrap: wrap; }
+    .small { font-size: 11px; color: var(--simqc-text-muted); }
   </style>
 </head>
 <body>
@@ -39,61 +52,148 @@
       <div id="gate-palette" class="muted">Loading gates…</div>
     </aside>
     <section class="panel main">
-      <div class="panel-title">Circuit Editor</div>
-      <canvas id="circuit" width="680" height="660"></canvas>
+      <div class="panel-title" style="display:flex;justify-content:space-between;align-items:center;">
+        Circuit Editor
+        <div class="toolbar" style="margin-left:auto;">
+          <button id="btn-simulate">Simulate</button>
+          <button id="btn-reset">Reset</button>
+          <button id="btn-undo" title="Undo">↶</button>
+          <button id="btn-redo" title="Redo">↷</button>
+        </div>
+      </div>
+      <canvas id="circuit"></canvas>
     </section>
     <aside class="panel right">
       <div class="panel-title">Code & AI</div>
-      <div id="code-view" class="muted">{} </div>
+      <div class="toolbar">
+        <button id="btn-copy">Copy</button>
+        <button id="btn-import">Import</button>
+        <button id="btn-export">Export</button>
+        <button id="btn-share">Share URL</button>
+      </div>
+      <textarea id="code-view" spellcheck="false">{}</textarea>
+      <div class="note">Canonical SimQC v1 JSON. Edit and press Enter to apply.</div>
+      <div id="ai-panel" style="margin-top:8px;">
+        <div class="panel-title">AI Explainer</div>
+        <button id="btn-explain">Explain circuit</button>
+        <div id="ai-output" class="muted" style="margin-top:6px;"></div>
+      </div>
     </aside>
     <aside class="panel bottom">
-      <div class="panel-title">Inspector</div>
-      <div id="inspector" class="muted">No state yet.</div>
+      <div class="panel-title" style="display:flex;justify-content:space-between;align-items:center;">
+        Inspector
+        <div class="toolbar" style="margin-left:auto;">
+          <button id="btn-step">Step</button>
+          <button id="btn-run">Run</button>
+        </div>
+      </div>
+      <div class="tab-strip">
+        <button class="tab active" data-tab="amplitudes">Amplitudes</button>
+        <button class="tab" data-tab="probabilities">Probabilities</button>
+        <button class="tab" data-tab="bloch">Bloch Spheres</button>
+      </div>
+      <div id="inspector-content" class="muted">No state yet.</div>
+      <div class="field">
+        <span class="toolbar-label">Shots:</span>
+        <input id="shots-input" type="number" value="1024" min="1">
+        <button id="btn-sample">Sample</button>
+      </div>
+      <div id="shot-hist" class="muted"></div>
+      <div id="status" class="status"></div>
     </aside>
   </div>
 
   <script type="module">
-    import { Circuit } from './src/circuit/Circuit.js';
-    import { GateColumn } from './src/circuit/GateColumn.js';
-    import { Gate } from './src/circuit/GateColumn.js';
     import { renderCircuit } from './src/canvas/Renderer.js';
-    import { panelModel, catalog, theme, themeCssVariables } from './src/main.js';
-
-    // Build a sample Bell circuit: H(0), CNOT(0->1)
-    const bell = new Circuit({
-      numQubits: 2,
-      columns: [
-        new GateColumn({ gates: [new Gate({ name: 'H', target: 0 })] }),
-        new GateColumn({ gates: [new Gate({ name: 'CNOT', target: 1, controls: [{ row: 0, on: true }] })] }),
-      ],
-    });
-
-    // Render into the main canvas
-    const canvas = document.getElementById('circuit');
-    const ctx = canvas.getContext('2d');
+    import { theme, themeCssVariables } from './src/ui/theme.js';
+    import {
+      panelModel, history, interaction, catalog,
+      InspectorUI, Inspector, theme,
+      gateArity, gateControlCount, gateNeedsTarget2,
+    } from './src/main.js';
+    import { AppController } from './src/ui/AppController.js';
 
     for (const [name, value] of Object.entries(themeCssVariables)) {
       document.documentElement.style.setProperty(name, value);
     }
 
-    function draw() {
+    const canvas = document.getElementById('circuit');
+    const ctx = canvas.getContext('2d');
+
+    const app = new AppController({
+      history,
+      interaction,
+      catalog,
+      theme: themeObj,
+      Debugger: null,
+      Inspector,
+      canvasEl: canvas,
+      paletteEl: document.getElementById('gate-palette'),
+      inspectorEl: document.getElementById('inspector-content'),
+      codeEl: document.getElementById('code-view'),
+      statusEl: document.getElementById('status'),
+    });
+
+    // ------------------------------------------------------------------
+    // Render callback: paint the circuit canvas.
+    // ------------------------------------------------------------------
+    app.onRender(({ circuit, purity }) => {
       const dpr = window.devicePixelRatio || 1;
       const rect = canvas.getBoundingClientRect();
-      canvas.width = rect.width * dpr;
-      canvas.height = rect.height * dpr;
+      const cssW = rect.width > 0 ? rect.width : 680;
+      const cssH = rect.height > 0 ? rect.height : 660;
+      canvas.width = cssW * dpr;
+      canvas.height = cssH * dpr;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.clearRect(0, 0, rect.width, rect.height);
+      ctx.clearRect(0, 0, cssW, cssH);
 
-      const drawing = renderCircuit(bell, theme);
+      const drawing = renderCircuit(circuit, theme, { labelGutter: 48, purity });
+      const { gateFill, gateStroke, foreground, entanglementGlow, entropyAccent } = theme;
+
       for (const g of drawing.gates) {
         if (g.kind === 'label') {
           ctx.fillStyle = g.color;
           ctx.font = '13px system-ui';
           ctx.textAlign = 'right';
-          ctx.fillText(g.text, g.x - 6, g.y + 26);
+          ctx.textBaseline = 'middle';
+          ctx.fillText(g.text, g.x - 4, g.y);
+        } else if (g.kind === 'rowSeparator') {
+          ctx.strokeStyle = g.color;
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(g.x1, g.y1);
+          ctx.lineTo(g.x2, g.y2);
+          ctx.stroke();
         } else if (g.kind === 'line') {
           ctx.strokeStyle = g.color;
           ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(g.x1, g.y1);
+          ctx.lineTo(g.x2, g.y2);
+          ctx.stroke();
+        } else if (g.kind === 'controlLine') {
+          ctx.strokeStyle = entanglementGlow;
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.moveTo(g.x1, g.y1);
+          ctx.lineTo(g.x2, g.y2);
+          ctx.stroke();
+        } else if (g.kind === 'controlDot') {
+          ctx.fillStyle = entanglementGlow;
+          ctx.beginPath();
+          ctx.arc(g.x, g.y, 4, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (g.kind === 'targetCircle') {
+          ctx.strokeStyle = foreground;
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.arc(g.x, g.y, 7, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.fillStyle = foreground;
+          ctx.fillText('\u2295', g.x - 4, g.y + 5);
+        } else if (g.kind === 'swapLine') {
+          ctx.strokeStyle = foreground;
+          ctx.lineWidth = 1.5;
           ctx.beginPath();
           ctx.moveTo(g.x1, g.y1);
           ctx.lineTo(g.x2, g.y2);
@@ -104,42 +204,172 @@
           ctx.lineWidth = 1.5;
           ctx.fillRect(g.x, g.y, g.w, g.h);
           ctx.strokeRect(g.x, g.y, g.w, g.h);
-          ctx.fillStyle = theme.foreground;
-          ctx.font = 'bold 14px system-ui';
+          ctx.fillStyle = foreground;
+          ctx.font = 'bold 13px system-ui';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
-          ctx.fillText(g.gateId, g.x + g.w / 2, g.y + g.h / 2);
-        } else if (g.kind === 'glow') {
-          ctx.shadowColor = g.color;
-          ctx.shadowBlur = 8;
+          let label = g.gateId;
+          if (g.thetaRad !== undefined) label += ` \u03b8=${g.thetaRad.toFixed(2)}`;
+          ctx.fillText(label, g.cx, g.cy);
+        } else if (g.kind === 'rowGlow') {
+          ctx.save();
+          ctx.globalAlpha = g.alpha;
           ctx.fillStyle = g.color;
           ctx.fillRect(g.x, g.y, g.w, g.h);
-          ctx.shadowBlur = 0;
+          ctx.restore();
         }
+      }
+    });
+
+    // ------------------------------------------------------------------
+    // Inspector callback: render readouts.
+    // ------------------------------------------------------------------
+    const inspectorContent = document.getElementById('inspector-content');
+    let activeTab = 'amplitudes';
+
+    app.onInspector(() => {
+      renderInspector();
+    });
+
+    function renderInspector() {
+      if (!app.currentCircuit) {
+        inspectorContent.textContent = 'No state yet.';
+        return;
+      }
+      const probs = app.probabilities();
+      const labels = app.ketLabels();
+      const n = app.numQubits;
+      if (activeTab === 'amplitudes') {
+        let html = '<div style="font-size:12px;line-height:1.5;">';
+        for (let i = 0; i < probs.length; i++) {
+          const p = probs[i];
+          if (p > 1e-6) {
+            const re = app.currentCircuit ? 0 : 0;
+            html += `<span style="color:var(--simqc-accent)">★${labels[i]}</span> p=${p.toFixed(4)}<br>`;
+          }
+        }
+        html += '</div>';
+        inspectorContent.innerHTML = html;
+      } else if (activeTab === 'probabilities') {
+        inspectorContent.textContent = 'Probability distribution over ' + probs.length + ' basis states.';
+      } else {
+        inspectorContent.textContent = 'Bloch spheres for ' + n + ' qubit row(s).';
       }
     }
 
-    // Wire up panels
-    const paletteEl = document.getElementById('gate-palette');
+    document.getElementById('inspector-content').addEventListener('click', (ev) => {
+      const tab = ev.target.closest('.tab[data-tab]');
+      if (!tab) return;
+      document.querySelectorAll('.tab').forEach((t) => t.classList.remove('active'));
+      tab.classList.add('active');
+      activeTab = tab.dataset.tab;
+      renderInspector();
+    });
+
+    // ------------------------------------------------------------------
+    // Code view callback: sync canonical JSON.
+    // ------------------------------------------------------------------
     const codeEl = document.getElementById('code-view');
-    const inspectorEl = document.getElementById('inspector');
+    app.onCode(() => {
+      codeEl.value = app.serialize();
+    });
 
-    paletteEl.textContent = '';
-    for (const entry of catalog) {
-      const btn = document.createElement('button');
-      btn.textContent = entry.label;
-      btn.title = entry.category;
-      paletteEl.appendChild(btn);
-    }
+    codeEl.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Enter' && !ev.shiftKey) {
+        ev.preventDefault();
+        const result = app.deserialize(codeEl.value);
+        if (result.ok) app.draw();
+      }
+    });
 
-    codeEl.textContent = JSON.stringify(
-      { format: 'simqc-circuit', version: 1, bitOrder: 'little-endian', numQubits: 2, columns: bell.columns.map(c => c.gates.map(g => g.toDescriptor())) },
-      null, 2
-    );
-    inspectorEl.textContent = 'Bell state rendered: H(0) then CNOT(0→1). Probabilities: |00⟩=0.5, |11⟩=0.5';
+    document.getElementById('btn-copy').addEventListener('click', () => {
+      codeEl.select();
+      document.execCommand('copy');
+    });
+    document.getElementById('btn-import').addEventListener('click', () => {
+      const input = prompt('Paste canonical v1 JSON:');
+      if (input) {
+        const result = app.deserialize(input);
+        if (result.ok) { codeEl.value = app.serialize(); app.draw(); }
+        else alert(result.error);
+      }
+    });
+    document.getElementById('btn-export').addEventListener('click', () => {
+      const blob = new Blob([app.serialize()], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'circuit.simqc.json';
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+    document.getElementById('btn-share').addEventListener('click', () => {
+      const json = app.serialize();
+      if (!json) return;
+      const compressed = btoa(unescape(encodeURIComponent(json)));
+      const url = location.origin + location.pathname + '#circuit=' + compressed;
+      prompt('Shareable URL (copy):', url);
+    });
 
-    draw();
-    window.addEventListener('resize', draw);
+    // ------------------------------------------------------------------
+    // Debugger / simulation controls.
+    // ------------------------------------------------------------------
+    document.getElementById('btn-simulate').addEventListener('click', () => { app.simulate(); app.draw(); });
+    document.getElementById('btn-reset').addEventListener('click', () => { app.reset(); app.draw(); });
+    document.getElementById('btn-undo').addEventListener('click', () => { app.undo(); app.draw(); });
+    document.getElementById('btn-redo').addEventListener('click', () => { app.redo(); app.draw(); });
+    document.getElementById('btn-step').addEventListener('click', () => { app.step(); app.draw(); renderInspector(); });
+    document.getElementById('btn-run').addEventListener('click', () => { app.simulate(); app.draw(); renderInspector(); });
+
+    // ------------------------------------------------------------------
+    // Shots / measurement.
+    // ------------------------------------------------------------------
+    const shotsInput = document.getElementById('shots-input');
+    app.onInspector(() => { /* shots handled on sample */ });
+    shotsInput.addEventListener('change', (ev) => { app.setShots(ev.target.value); });
+    document.getElementById('btn-sample').addEventListener('click', () => {
+      app.simulate();
+      const hist = app.sampleShots();
+      const el = document.getElementById('shot-hist');
+      const n = app.numQubits;
+      let html = '<div style="font-size:12px;line-height:1.5;">';
+      const total = app.shots;
+      for (const [idx, count] of hist.entries()) {
+        const label = idx.toString(2).padStart(n, '0');
+        html += `<span style="color:var(--simqc-accent)">★${label}</span> ${count}/${total} (${((count/total)*100).toFixed(1)}%)<br>`;
+      }
+      html += '</div>';
+      el.innerHTML = html;
+    });
+
+    // ------------------------------------------------------------------
+    // AI explainer.
+    // ------------------------------------------------------------------
+    document.getElementById('btn-explain').addEventListener('click', async () => {
+      const out = document.getElementById('ai-output');
+      out.textContent = 'Explaining…';
+      try {
+        // AIExplainer is a discardable leaf; orchestrate via main.js imports.
+        const { AIExplainer } = await import('./src/ai/AIExplainer.js');
+        const { flattenCircuit } = await import('./src/circuit/Flatten.js');
+        const instructions = flattenCircuit(app.currentCircuit);
+        const summaries = [];
+        for (let i = 0; i < instructions.length; i++) summaries.push({ topK: [], marginals: [] });
+        const explainer = new AIExplainer();
+        const text = await explainer.explain(instructions, summaries, app.numQubits);
+        out.textContent = text;
+      } catch (err) {
+        out.textContent = 'AI unavailable: ' + err.message;
+      }
+    });
+
+    // ------------------------------------------------------------------
+    // Resize handling + initial draw.
+    // ------------------------------------------------------------------
+    app.draw();
+    renderInspector();
+    codeEl.value = app.serialize();
+    window.addEventListener('resize', () => { app.draw(); });
   </script>
 </body>
 </html>

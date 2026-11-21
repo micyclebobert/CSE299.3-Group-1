@@ -27,13 +27,25 @@ import { Cu1, Rx, Ry, Rz } from './gates/param.js';
 
 import { PanelModel, PanelRegion, PANEL_LEFT, PANEL_MAIN, PANEL_RIGHT, PANEL_BOTTOM } from './ui/panels.js';
 import { theme, themeCssVariables } from './ui/theme.js';
-import { Interaction } from './editor/Interaction.js';
-import { gateCatalog, CATEGORY_CORE, CATEGORY_EXTENSIONS } from './editor/gatePalette.js';
+import { Interaction, PHASE_IDLE, PHASE_PICKED, PHASE_DRAGGING, snapCell } from './editor/Interaction.js';
+import {
+  gateCatalog,
+  CATEGORY_CORE,
+  CATEGORY_EXTENSIONS,
+  CATEGORY_SUBCIRCUITS,
+  gateArity,
+  gateControlCount,
+  gateNeedsTarget2,
+} from './editor/gatePalette.js';
 import { History } from './state/History.js';
 
 // ---------------------------------------------------------------------------
 // Register all gates into the circuit-layer registry.
 // This is the single import edge from gates/ into the application.
+// Fixed gates (single-qubit flat tuples) and parameterized rotations are
+// registered here. Multi-qubit gates (CNOT, CZ, SWAP, Toffoli) are dispatched
+// by gateId in sim/Evaluator.js and sim/StepTrace.js via dedicated kernels,
+// so they are catalogued in gatePalette.js but not registered as flat tuples.
 // ---------------------------------------------------------------------------
 
 registerFixedGate('I', I);
@@ -73,9 +85,15 @@ const catalog = gateCatalog();
 // Deleting any leaf folder requires at most a 2-line diff in this file.
 // ---------------------------------------------------------------------------
 
-// import { DebuggerUI } from './debugger/DebuggerUI.js';
-// import { InspectorUI } from './inspector/InspectorUI.js';
-// import { AIExplainer } from './ai/AIExplainer.js';
+import { DebuggerUI } from './debugger/DebuggerUI.js';
+import { Inspector } from './inspector/Inspector.js';
+import { InspectorUI } from './inspector/InspectorUI.js';
+import { AIExplainer } from './ai/AIExplainer.js';
+import { IOAnalyzer } from './ai/IOAnalyzer.js';
+import { AIBuilder } from './ai/AIBuilder.js';
+import { Cache } from './ai/Cache.js';
+
+const cache = new Cache();
 
 // ---------------------------------------------------------------------------
 // Application entry point (browser / CLI wiring would go here).
@@ -88,7 +106,14 @@ export { listGates, getGate, getFixedGate, getParameterizedGate } from './circui
 // UI shell exports (browser entry point consumes these).
 // ---------------------------------------------------------------------------
 
-export { panelModel, history, interaction, catalog };
-export { theme, themeCssVariables, CATEGORY_CORE, CATEGORY_EXTENSIONS };
+export { panelModel, history, interaction, catalog, cache };
+export { theme, themeCssVariables, CATEGORY_CORE, CATEGORY_EXTENSIONS, CATEGORY_SUBCIRCUITS };
+export { gateArity, gateControlCount, gateNeedsTarget2 };
 export { PHASE_IDLE, PHASE_PICKED, PHASE_DRAGGING } from './editor/Interaction.js';
 export { snapCell } from './editor/Interaction.js';
+
+// ---------------------------------------------------------------------------
+// Discardable feature leaf exports (browser controller consumes these).
+// ---------------------------------------------------------------------------
+
+export { DebuggerUI, InspectorUI, Inspector, AIExplainer, IOAnalyzer, AIBuilder };
