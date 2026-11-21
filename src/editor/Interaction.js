@@ -91,13 +91,6 @@ export class Interaction {
     return this;
   }
 
-  /**
-   * Place the picked gate onto `circuit` at the snapped cell.
-   *
-   * Returns { circuit: Circuit | null, column, row, gateEntry, conflict, reason }.
-   * On conflict (row already used in that column, or out-of-range indices)
-   * circuit is null and conflict is true. The interaction resets to idle.
-   */
   drop(circuit, { colPitch, rowPitch, colOffset = 0, rowOffset = 0 } = {}) {
     const hadPicked = this._phase !== PHASE_IDLE;
     const gateEntry = this._gateEntry;
@@ -118,6 +111,11 @@ export class Interaction {
       return { circuit: null, column, row, gateEntry, conflict: true, reason: 'invalid row' };
     }
 
+    const controlCount = Number.isInteger(gateEntry.controls) ? gateEntry.controls : 0;
+    const needsTarget2 = Boolean(gateEntry.target2);
+    const parameterized = Boolean(gateEntry.parameterized);
+    const defaultTheta = gateEntry.defaultTheta;
+
     const existing = circuit.columns[column] ?? null;
     const usedRows = new Set();
     if (existing) {
@@ -130,14 +128,36 @@ export class Interaction {
     if (usedRows.has(row)) {
       return { circuit: null, column, row, gateEntry, conflict: true, reason: 'row occupied in column' };
     }
+    usedRows.add(row);
+
+    const freeRows = [];
+    for (let r = 0; r < circuit.numQubits; r++) {
+      if (!usedRows.has(r)) {
+        freeRows.push(r);
+      }
+    }
+
+    const totalExtra = controlCount + (needsTarget2 ? 1 : 0);
+    if (freeRows.length < totalExtra) {
+      return { circuit: null, column, row, gateEntry, conflict: true, reason: 'insufficient free rows' };
+    }
+
+    const controls = [];
+    let freeIndex = 0;
+    for (let i = 0; i < controlCount; i++) {
+      controls.push({ row: freeRows[freeIndex++], on: true });
+    }
+    let target2 = undefined;
+    if (needsTarget2) {
+      target2 = freeRows[freeIndex++];
+    }
 
     const gate = new Gate({
       name: gateEntry.name,
       target: row,
-      controls: [],
-      ...(gateEntry.parameterized && gateEntry.defaultTheta !== undefined
-        ? { thetaRad: gateEntry.defaultTheta }
-        : {}),
+      controls,
+      target2,
+      ...(parameterized && defaultTheta !== undefined ? { thetaRad: defaultTheta } : {}),
     });
 
     const nextColumns = [...circuit.columns];

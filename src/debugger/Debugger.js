@@ -277,6 +277,18 @@ export class Debugger {
     return this.#breakpointManager.isEnabled();
   }
 
+  togglePredicateBreakpoint(id) {
+    return this.#breakpointManager.togglePredicateBreakpoint(id);
+  }
+
+  getPredicateBreakpointIds() {
+    return this.#breakpointManager.getPredicateBreakpointIds();
+  }
+
+  clearAllBreakpoints() {
+    this.#breakpointManager.clearAll();
+  }
+
   // ---------------------------------------------------------------------------
   // Timeline Scrubber (M4.3)
   // ---------------------------------------------------------------------------

@@ -17,6 +17,9 @@ import {
   seal,
 } from './circuit/GateRegistry.js';
 
+import { encode as _urlEncode, decode as _urlDecode } from './circuit/URLCodec.js';
+const URLCodec = { encode: _urlEncode, decode: _urlDecode };
+
 import { I, X, Y, Z, H, S, T } from './gates/basis.js';
 import { Cu1, Rx, Ry, Rz } from './gates/param.js';
 
@@ -91,6 +94,8 @@ import { InspectorUI } from './inspector/InspectorUI.js';
 import { AIExplainer } from './ai/AIExplainer.js';
 import { IOAnalyzer } from './ai/IOAnalyzer.js';
 import { AIBuilder } from './ai/AIBuilder.js';
+import { AIBuilderUI } from './ai/AIBuilderUI.js';
+import { IOAnalyzerUI } from './ai/IOAnalyzerUI.js';
 import { Cache } from './ai/Cache.js';
 
 const cache = new Cache();
@@ -106,7 +111,7 @@ export { listGates, getGate, getFixedGate, getParameterizedGate } from './circui
 // UI shell exports (browser entry point consumes these).
 // ---------------------------------------------------------------------------
 
-export { panelModel, history, interaction, catalog, cache };
+export { panelModel, history, interaction, catalog, cache, URLCodec };
 export { theme, themeCssVariables, CATEGORY_CORE, CATEGORY_EXTENSIONS, CATEGORY_SUBCIRCUITS };
 export { gateArity, gateControlCount, gateNeedsTarget2 };
 export { PHASE_IDLE, PHASE_PICKED, PHASE_DRAGGING } from './editor/Interaction.js';
@@ -116,4 +121,4 @@ export { snapCell } from './editor/Interaction.js';
 // Discardable feature leaf exports (browser controller consumes these).
 // ---------------------------------------------------------------------------
 
-export { DebuggerUI, InspectorUI, Inspector, AIExplainer, IOAnalyzer, AIBuilder };
+export { DebuggerUI, InspectorUI, Inspector, AIExplainer, IOAnalyzer, AIBuilder, AIBuilderUI, IOAnalyzerUI, Cache };

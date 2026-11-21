@@ -200,9 +200,11 @@ export class AIExplainer {
       }
       return result;
     } catch (err) {
-      process.stderr.write(
-        `[AIExplainer] Ollama call failed, using template fallback: ${err.message}\n`
-      );
+      if (typeof console !== 'undefined') {
+        console.error(
+          `[AIExplainer] Ollama call failed, using template fallback: ${err.message}`
+        );
+      }
       return templateFallback(instructions);
     }
   }

@@ -1,43 +1,32 @@
-// =============================================================================
 // src/ui/AppController.js
-// -----------------------------------------------------------------------------
 // Browser application state/controller layer.
-//
-// Owns the mutable application state (currentCircuit, current StepTrace,
-// shot count) and coordinates: circuit edits (palette drop, undo/redo),
-// simulation (StepTrace/Debugger), Inspector readouts, Code&AI JSON
-// serialization, and canvas rendering notifications.
-//
-// Pure model objects come from main.js (the sole importer of gates/ and
-// discardable leaves). This module is DOM-aware: it touches window/document
-// only via the injected element refs and the render callback.
-// =============================================================================
+// Owns mutable app state and coordinates circuit edits, simulation,
+// Inspector readouts, Code&AI JSON serialization, and canvas rendering.
 
 import { Circuit } from '../circuit/Circuit.js';
 import { Gate, GateColumn } from '../circuit/GateColumn.js';
 import { Serializer } from '../circuit/Serializer.js';
+import { encode as _urlEncode, decode as _urlDecode } from '../circuit/URLCodec.js';
+const URLCodec = { encode: _urlEncode, decode: _urlDecode };
 import { flattenCircuit, scheduleColumns } from '../circuit/Flatten.js';
 import { StepTrace } from '../sim/StepTrace.js';
+import { StateVector } from '../core/StateVector.js';
 import { collapse, sampleHistogram } from '../measurement/measurement.js';
+import { gateControlCount, gateNeedsTarget2 } from '../editor/gatePalette.js';
 
 export class AppController {
   constructor({
-    history,
-    interaction,
-    catalog,
-    theme,
-    Inspector,
-    canvasEl,
-    paletteEl,
-    inspectorEl,
-    codeEl,
-    statusEl,
+    history, interaction, catalog, theme, Inspector,
+    AIBuilderUI, IOAnalyzerUI,
+    canvasEl, paletteEl, inspectorEl, codeEl, statusEl,
   }) {
     this._history = history;
     this._interaction = interaction;
     this._catalog = catalog;
     this._theme = theme;
     this._Inspector = Inspector;
+    this._AIBuilderUI = AIBuilderUI || null;
+    this._IOAnalyzerUI = IOAnalyzerUI || null;
 
     this._canvasEl = canvasEl;
     this._ctx = canvasEl.getContext('2d');
@@ -50,7 +39,11 @@ export class AppController {
     this._stepTrace = null;
     this._debugger = null;
     this._inspector = null;
+    this._aiBuilder = null;
+    this._ioAnalyzer = null;
     this._shots = 1024;
+    this._pointer = { x: 0, y: 0 };
+    this._selectedEntry = null;
 
     this._renderCb = null;
     this._inspectorCb = null;
@@ -64,10 +57,6 @@ export class AppController {
     this.resetCircuit(2);
   }
 
-  // -----------------------------------------------------------------------
-  // Subscriptions
-  // -----------------------------------------------------------------------
-
   onRender(cb) { this._renderCb = cb; }
   onInspector(cb) { this._inspectorCb = cb; }
   onCode(cb) { this._codeCb = cb; }
@@ -78,24 +67,24 @@ export class AppController {
     if (this._codeCb) this._codeCb();
   }
 
-  // -----------------------------------------------------------------------
-  // Circuit state
-  // -----------------------------------------------------------------------
-
   get currentCircuit() { return this._currentCircuit; }
   get numQubits() { return this._currentCircuit ? this._currentCircuit.numQubits : 0; }
   get shots() { return this._shots; }
   get catalog() { return this._catalog; }
   get canUndo() { return this._history.canUndo(); }
   get canRedo() { return this._history.canRedo(); }
+  get aiBuilder() { return this._aiBuilder; }
+  get ioAnalyzer() { return this._ioAnalyzer; }
 
   resetCircuit(numQubits = 2) {
     const circuit = new Circuit({ numQubits, columns: [] });
     this._setCircuit(circuit);
+    if (this._AIBuilderUI) this._aiBuilder = new this._AIBuilderUI({ numQubits });
+    if (this._IOAnalyzerUI) this._ioAnalyzer = new this._IOAnalyzerUI({ numQubits });
     this._status('Ready. Click a palette gate to place it on the canvas.');
   }
 
-  _setCircuit(circuit) {
+  _setCircuit(circuit, { record = true } = {}) {
     if (!(circuit instanceof Circuit)) {
       throw new TypeError('AppController expects a Circuit instance');
     }
@@ -104,13 +93,36 @@ export class AppController {
     const schedule = scheduleColumns(instructions);
     this._stepTrace = new StepTrace(schedule, circuit.numQubits);
     this._inspector = new this._Inspector(this._stepTrace);
-    this._history.push(circuit);
+    if (record) this._history.push(circuit);
     this.notify();
   }
 
-  // -----------------------------------------------------------------------
-  // Palette / drag-and-drop placement
-  // -----------------------------------------------------------------------
+  encodeURL() {
+    return URLCodec.encode(this.serialize());
+  }
+
+  decodeURL(urlSafeBase64) {
+    try {
+      const json = URLCodec.decode(urlSafeBase64);
+      const result = this.deserialize(json);
+      return { ok: result.ok, error: result.error };
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  }
+
+  placeGateAt(column, row, gateName) {
+    const entry = this._catalog.find((e) => e.name === gateName);
+    if (!entry) return { conflict: true, reason: 'unknown gate' };
+    const result = this._tryPlace(entry, column, row);
+    if (result.conflict) return { conflict: true, reason: result.reason };
+    return { conflict: false };
+  }
+
+  getPointer() { return this._pointer; }
+  setPointer(x, y) { this._pointer = { x, y }; }
+
+  getSelectedEntry() { return this._selectedEntry; }
 
   _renderPalette() {
     this._paletteEl.textContent = '';
@@ -148,20 +160,29 @@ export class AppController {
       const name = btn.dataset.name;
       const entry = this._catalog.find((e) => e.name === name);
       if (!entry) return;
-      this._placeGate(entry, 0);
+      this._selectedEntry = entry;
     });
+  }
+
+  _bindCanvas() {
+    if (!this._canvasEl) return;
+    const move = (ev) => this.setPointer(ev.offsetX ?? 0, ev.offsetY ?? 0);
+    this._canvasEl.addEventListener('pointermove', move);
+    this._canvasEl.addEventListener('mousemove', move);
+  }
+
+  _bindResize() {
+    window.addEventListener('resize', () => this.draw());
+    this.draw();
   }
 
   _placeGate(entry, column) {
     const circuit = this._currentCircuit;
     const n = circuit.numQubits;
-    // Find the first column-row cell that is free in `column`.
     let placed = false;
     for (let row = 0; row < n && !placed; row++) {
       const result = this._tryPlace(entry, column, row);
-      if (!result.conflict) {
-        placed = true;
-      }
+      if (!result.conflict) placed = true;
     }
     if (!placed) {
       this._status('No free row in target column.');
@@ -181,29 +202,32 @@ export class AppController {
         for (const c of g.controls) usedRows.add(c.row);
       }
     }
-    if (usedRows.has(row)) {
-      return { circuit: null, conflict: true, reason: 'row occupied in column' };
-    }
+    if (usedRows.has(row)) return { circuit: null, conflict: true, reason: 'row occupied in column' };
+
+    const controlsNeeded = gateControlCount(entry.name);
+    const needsTarget2 = gateNeedsTarget2(entry.name);
+    const totalNeeded = 1 + controlsNeeded + (needsTarget2 ? 1 : 0);
+    let freeCount = 0;
+    for (let r = 0; r < n; r += 1) if (!usedRows.has(r)) freeCount += 1;
+    if (freeCount < totalNeeded) return { circuit: null, conflict: true, reason: 'insufficient free rows for gate arity' };
 
     const controls = [];
-    if (entry.controls > 0) {
-      let ctrlRow = row + 1;
-      while (ctrlRow < circuit.numQubits && usedRows.has(ctrlRow)) ctrlRow += 1;
-      if (ctrlRow < circuit.numQubits) {
-        controls.push({ row: ctrlRow, on: true });
-        usedRows.add(ctrlRow);
-      }
+    for (let r = 0; r < n && controls.length < controlsNeeded; r += 1) {
+      if (usedRows.has(r)) continue;
+      controls.push({ row: r, on: true });
+      usedRows.add(r);
     }
     let target2 = undefined;
-    if (entry.target2) {
-      let t2 = row + 1;
-      while (t2 < circuit.numQubits && usedRows.has(t2)) t2 += 1;
-      if (t2 < circuit.numQubits) target2 = t2;
+    if (needsTarget2) {
+      for (let r = 0; r < n; r += 1) {
+        if (usedRows.has(r)) continue;
+        target2 = r;
+        usedRows.add(r);
+        break;
+      }
     }
     let thetaRad = undefined;
-    if (entry.parameterized && entry.defaultTheta !== undefined) {
-      thetaRad = entry.defaultTheta;
-    }
+    if (entry.parameterized && entry.defaultTheta !== undefined) thetaRad = entry.defaultTheta;
     const gate = new Gate({ name: entry.name, target: row, target2, thetaRad, controls });
 
     const nextColumns = [...circuit.columns];
@@ -217,14 +241,10 @@ export class AppController {
     return { circuit: nextCircuit, conflict: false };
   }
 
-  // -----------------------------------------------------------------------
-  // Undo / redo
-  // -----------------------------------------------------------------------
-
   undo() {
     const prev = this._history.undo();
     if (prev) {
-      this._setCircuit(prev);
+      this._setCircuit(prev, { record: false });
       this._status('Undo.');
     }
     return prev;
@@ -233,21 +253,15 @@ export class AppController {
   redo() {
     const next = this._history.redo();
     if (next) {
-      this._setCircuit(next);
+      this._setCircuit(next, { record: false });
       this._status('Redo.');
     }
     return next;
   }
 
-  // -----------------------------------------------------------------------
-  // Simulation / Debugger
-  // -----------------------------------------------------------------------
-
   simulate() {
     if (!this._stepTrace) return;
-    while (this._stepTrace.step < this._stepTrace.scheduleLength) {
-      this._stepTrace.next();
-    }
+    while (this._stepTrace.step < this._stepTrace.scheduleLength) this._stepTrace.next();
     this.notify();
     this._status(`Simulated ${this._stepTrace.scheduleLength} virtual column(s).`);
   }
@@ -274,29 +288,12 @@ export class AppController {
   getCurrentStep() { return this._stepTrace ? this._stepTrace.step : 0; }
   getTotalSteps() { return this._stepTrace ? this._stepTrace.scheduleLength : 0; }
   isAtStart() { return this._stepTrace ? this._stepTrace.step === 0 : true; }
-  isAtEnd() {
-    return this._stepTrace ? this._stepTrace.step >= this._stepTrace.scheduleLength : true;
-  }
+  isAtEnd() { return this._stepTrace ? this._stepTrace.step >= this._stepTrace.scheduleLength : true; }
 
-  // -----------------------------------------------------------------------
-  // Inspector readouts
-  // -----------------------------------------------------------------------
-
-  probabilities() {
-    return this._inspector ? this._inspector.probabilities() : new Float64Array(0);
-  }
-
-  amplitudes() {
-    return this._inspector ? this._inspector.amplitudes() : [];
-  }
-
-  ketLabels() {
-    return this._inspector ? this._inspector.ketLabels() : [];
-  }
-
-  linearEntropy(q) {
-    return this._inspector ? this._inspector.purity.linearEntropy(q) : 0;
-  }
+  probabilities() { return this._inspector ? this._inspector.probabilities() : new Float64Array(0); }
+  amplitudes() { return this._inspector ? this._inspector.amplitudes() : []; }
+  ketLabels() { return this._inspector ? this._inspector.ketLabels() : []; }
+  linearEntropy(q) { return this._inspector ? this._inspector.purity.linearEntropy(q) : 0; }
 
   purityGammas() {
     const n = this.numQubits;
@@ -305,30 +302,25 @@ export class AppController {
     return out;
   }
 
-  bloch(q) {
-    return this._inspector ? this._inspector.bloch.vector(q) : { x: 0, y: 0, z: 0 };
-  }
+  bloch(q) { return this._inspector ? this._inspector.bloch.vector(q) : { x: 0, y: 0, z: 0 }; }
 
-  // -----------------------------------------------------------------------
-  // Measurement / shots
-  // -----------------------------------------------------------------------
-
-  setShots(shots) {
-    this._shots = Math.max(1, Math.floor(shots));
-  }
+  setShots(shots) { this._shots = Math.max(1, Math.floor(shots)); }
 
   sampleShots() {
     if (!this._stepTrace) return null;
-    return sampleHistogram(this._stepTrace.currentState, this._shots);
+    const trace = this._stepTrace;
+    const state = new StateVector(trace.numQubits);
+    const size = trace.size;
+    const re = state.getRawRe();
+    const im = state.getRawIm();
+    for (let i = 0; i < size; i += 1) {
+      re[i] = trace.currentState.getRe(i);
+      im[i] = trace.currentState.getIm(i);
+    }
+    return sampleHistogram(state, this._shots);
   }
 
-  // -----------------------------------------------------------------------
-  // Code & AI (canonical v1 JSON)
-  // -----------------------------------------------------------------------
-
-  serialize() {
-    return this._currentCircuit ? Serializer.toJson(this._currentCircuit) : '';
-  }
+  serialize() { return this._currentCircuit ? Serializer.toJson(this._currentCircuit) : ''; }
 
   deserialize(json) {
     try {
@@ -342,16 +334,10 @@ export class AppController {
     }
   }
 
-  // -----------------------------------------------------------------------
-  // Rendering
-  // -----------------------------------------------------------------------
-
   draw() {
     if (!this._currentCircuit || !this._renderCb) return;
     this._renderCb({ circuit: this._currentCircuit, purity: this.purityGammas() });
   }
 
-  _status(msg) {
-    if (this._statusEl) this._statusEl.textContent = msg;
-  }
+  _status(msg) { if (this._statusEl) this._statusEl.textContent = msg; }
 }

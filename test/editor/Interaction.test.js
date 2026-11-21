@@ -205,3 +205,87 @@ test('original circuit is not mutated by drop', () => {
   strictEqual(result.circuit.columns.length, 1);
   strictEqual(result.circuit !== circuit, true);
 });
+
+const CNOT_ENTRY = gateCatalog().find((e) => e.name === 'CNOT');
+const TOFFOLI_ENTRY = gateCatalog().find((e) => e.name === 'Toffoli');
+const SWAP_ENTRY = gateCatalog().find((e) => e.name === 'SWAP');
+const CU1_ENTRY = gateCatalog().find((e) => e.name === 'Cu1');
+
+test('drop places CNOT with a control allocated from a free row', () => {
+  const circuit = emptyCircuit(3);
+  const it = new Interaction();
+  it.pick(CNOT_ENTRY, 0, 10);
+  it.snap(0, 10, { colPitch: 20, rowPitch: 10 });
+  const result = it.drop(circuit, { colPitch: 20, rowPitch: 10 });
+  strictEqual(result.conflict, false);
+  strictEqual(result.circuit.columns.length, 1);
+  strictEqual(result.circuit.columns[0].gates.length, 1);
+  const gate = result.circuit.columns[0].gates[0];
+  strictEqual(gate.name, 'CNOT');
+  strictEqual(gate.target, 1);
+  deepStrictEqual(gate.controls, [{ row: 0, on: true }]);
+});
+
+test('drop places Toffoli with two controls allocated from free rows', () => {
+  const circuit = emptyCircuit(3);
+  const it = new Interaction();
+  it.pick(TOFFOLI_ENTRY, 0, 20);
+  it.snap(0, 20, { colPitch: 20, rowPitch: 10 });
+  const result = it.drop(circuit, { colPitch: 20, rowPitch: 10 });
+  strictEqual(result.conflict, false);
+  const gate = result.circuit.columns[0].gates[0];
+  strictEqual(gate.name, 'Toffoli');
+  strictEqual(gate.target, 2);
+  deepStrictEqual(gate.controls, [{ row: 0, on: true }, { row: 1, on: true }]);
+});
+
+test('drop places SWAP with target2 allocated from a free row', () => {
+  const circuit = emptyCircuit(2);
+  const it = new Interaction();
+  it.pick(SWAP_ENTRY, 0, 0);
+  it.snap(0, 0, { colPitch: 20, rowPitch: 10 });
+  const result = it.drop(circuit, { colPitch: 20, rowPitch: 10 });
+  strictEqual(result.conflict, false);
+  const gate = result.circuit.columns[0].gates[0];
+  strictEqual(gate.name, 'SWAP');
+  strictEqual(gate.target, 0);
+  strictEqual(gate.target2, 1);
+});
+
+test('drop places parameterized Cu1 with defaultTheta as thetaRad and a control', () => {
+  const circuit = emptyCircuit(2);
+  const it = new Interaction();
+  it.pick(CU1_ENTRY, 0, 0);
+  it.snap(0, 0, { colPitch: 20, rowPitch: 10 });
+  const result = it.drop(circuit, { colPitch: 20, rowPitch: 10 });
+  strictEqual(result.conflict, false);
+  const gate = result.circuit.columns[0].gates[0];
+  strictEqual(gate.name, 'Cu1');
+  strictEqual(gate.target, 0);
+  deepStrictEqual(gate.controls, [{ row: 1, on: true }]);
+  strictEqual(gate.thetaRad, CU1_ENTRY.defaultTheta);
+});
+
+test('drop conflicts when insufficient free rows for controls', () => {
+  const col = new GateColumn({ gates: [new Gate({ name: 'X', target: 1 })] });
+  const circuit = new Circuit({ numQubits: 2, columns: [col] });
+  const it = new Interaction();
+  it.pick(CNOT_ENTRY, 0, 0);
+  it.snap(0, 0, { colPitch: 20, rowPitch: 10 });
+  const result = it.drop(circuit, { colPitch: 20, rowPitch: 10 });
+  strictEqual(result.conflict, true);
+  strictEqual(result.circuit, null);
+  strictEqual(result.reason, 'insufficient free rows');
+});
+
+test('drop conflicts when insufficient free rows for SWAP target2', () => {
+  const col = new GateColumn({ gates: [new Gate({ name: 'X', target: 1 })] });
+  const circuit = new Circuit({ numQubits: 2, columns: [col] });
+  const it = new Interaction();
+  it.pick(SWAP_ENTRY, 0, 0);
+  it.snap(0, 0, { colPitch: 20, rowPitch: 10 });
+  const result = it.drop(circuit, { colPitch: 20, rowPitch: 10 });
+  strictEqual(result.conflict, true);
+  strictEqual(result.circuit, null);
+  strictEqual(result.reason, 'insufficient free rows');
+});

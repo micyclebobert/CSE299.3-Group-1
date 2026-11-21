@@ -52,24 +52,25 @@ The goal is a simulator that is **numerically correct**, **efficient**, and **in
 
 ## 🚦 Project status
 
-| Component | Commitment | Status |
-|---|---|---|
-| Complex arithmetic and `n`-qubit state vector | Committed | ✅ Done |
-| Gate library (X, Y, Z, H, CNOT, Rx, Ry, Rz) | Committed | ✅ Done |
-| Gate application on target qubits only | Committed | ✅ Done |
-| Measurement and repeated-shot sampling | Committed | ✅ Done |
-| At least three of Deutsch–Jozsa, Grover, QFT | Committed | ✅ Done |
-| Custom drag-and-drop circuit editor | Committed | ⬜ Planned |
-| State displays (probabilities, amplitudes, state-vector text, histogram) | Committed | ✅ Done |
-| Extended gates (I, S, T, CZ, SWAP, Toffoli) | Extension | ✅ Done |
-| JSON and URL persistence | Planned | 🟨 In progress |
-| Breakpoints and stepwise inspection | Proposed feature | ✅ Done |
-| Reusable circuit blocks | Proposed feature | ⬜ Planned |
-| Entanglement highlighting | Proposed feature | ⬜ Planned |
-| Explainer AI and builder AI | Proposed feature | ✅ Done |
-| Bloch sphere and density-matrix displays | Deferred | ⬜ Later |
+| Component | Commitment | Engine | Browser UI |
+|---|---|---|---|
+| Complex arithmetic and `n`-qubit state vector | Committed | ✅ Done | n/a (headless core) |
+| Gate library (X, Y, Z, H, CNOT, Rx, Ry, Rz) | Committed | ✅ Done | n/a (headless core) |
+| Gate application on target qubits only | Committed | ✅ Done | n/a (headless core) |
+| Measurement and repeated-shot sampling | Committed | ✅ Done | ⬜ Not implemented |
+| At least three of Deutsch–Jozsa, Grover, QFT | Committed | ✅ Done | n/a (headless core) |
+| Custom drag-and-drop circuit editor | Committed | ✅ Done | ⬜ Planned |
+| State displays (probabilities, amplitudes, state-vector text, histogram) | Committed | ✅ Done | ⬜ Scaffold-only |
+| Extended gates (I, S, T, CZ, SWAP, Toffoli) | Extension | ✅ Done | ⬜ Scaffold-only |
+| JSON and URL persistence | Planned | 🟨 In progress | 🟨 In progress |
+| Breakpoints and stepwise inspection | Proposed feature | ✅ Done | ⬜ Scaffold-only |
+| Reusable circuit blocks | Proposed feature | ⬜ Planned | ⬜ Planned |
+| Entanglement highlighting | Proposed feature | ⬜ Planned | ⬜ Planned |
+| Explainer AI and builder AI | Proposed feature | ✅ Done | ⬜ Scaffold-only |
+| Bloch sphere and density-matrix displays | Deferred | ⬜ Later | ⬜ Later |
 
 *Update this table as work lands: ⬜ Planned → 🟨 In progress → ✅ Done.*
+*Engine = `src/core`, `src/circuit`, `src/sim`, `src/gates` (headless, runs in bare Node). Browser UI = `src/ui`, `src/canvas`, `index.html` (browser acceptance). "n/a" means the component is headless-only. Scaffold-only means the browser surface exists but is not functional end-to-end.*
 
 ---
 
