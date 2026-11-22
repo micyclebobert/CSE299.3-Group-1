@@ -57,20 +57,22 @@ The goal is a simulator that is **numerically correct**, **efficient**, and **in
 | Complex arithmetic and `n`-qubit state vector | Committed | ✅ Done | n/a (headless core) |
 | Gate library (X, Y, Z, H, CNOT, Rx, Ry, Rz) | Committed | ✅ Done | n/a (headless core) |
 | Gate application on target qubits only | Committed | ✅ Done | n/a (headless core) |
-| Measurement and repeated-shot sampling | Committed | ✅ Done | ⬜ Not implemented |
+| Measurement and repeated-shot sampling | Committed | ✅ Done | ✅ Done (implemented) |
 | At least three of Deutsch–Jozsa, Grover, QFT | Committed | ✅ Done | n/a (headless core) |
-| Custom drag-and-drop circuit editor | Committed | ✅ Done | ⬜ Planned |
-| State displays (probabilities, amplitudes, state-vector text, histogram) | Committed | ✅ Done | ⬜ Scaffold-only |
+| Custom drag-and-drop circuit editor | Committed | ✅ Done | ✅ Done (implemented) |
+| State displays (probabilities, amplitudes, state-vector text, histogram) | Committed | ✅ Done | ✅ Done (implemented) |
 | Extended gates (I, S, T, CZ, SWAP, Toffoli) | Extension | ✅ Done | ⬜ Scaffold-only |
 | JSON and URL persistence | Planned | 🟨 In progress | 🟨 In progress |
-| Breakpoints and stepwise inspection | Proposed feature | ✅ Done | ⬜ Scaffold-only |
+| Breakpoints and stepwise inspection | Proposed feature | ✅ Done | ✅ Done (implemented) |
 | Reusable circuit blocks | Proposed feature | ⬜ Planned | ⬜ Planned |
 | Entanglement highlighting | Proposed feature | ⬜ Planned | ⬜ Planned |
-| Explainer AI and builder AI | Proposed feature | ✅ Done | ⬜ Scaffold-only |
-| Bloch sphere and density-matrix displays | Deferred | ⬜ Later | ⬜ Later |
+| Explainer AI and builder AI | Proposed feature | ✅ Done | ✅ Done (implemented) |
+| I/O Analyzer with causal chain analysis | Proposed feature | ✅ Done | ✅ Done (implemented) |
+| Bloch sphere and density-matrix displays | Deferred | ⬜ Later | ✅ Done (implemented) |
 
 *Update this table as work lands: ⬜ Planned → 🟨 In progress → ✅ Done.*
-*Engine = `src/core`, `src/circuit`, `src/sim`, `src/gates` (headless, runs in bare Node). Browser UI = `src/ui`, `src/canvas`, `index.html` (browser acceptance). "n/a" means the component is headless-only. Scaffold-only means the browser surface exists but is not functional end-to-end.*
+*Engine = `src/core`, `src/circuit`, `src/sim`, `src/gates` (headless, runs in bare Node). Browser UI = `src/ui`, `src/canvas`, `index.html` (browser acceptance). "n/a" means the component is headless-only.*
+*Engine status reflects the headless simulation core, implemented and tested via `node --test`. Browser UI status reflects browser acceptance; an engine capability marked Done without a matching Browser UI Done means the capability exists in the core but has no browser interface yet.*
 
 ---
 

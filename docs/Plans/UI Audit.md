@@ -1,5 +1,134 @@
 # UI Audit
 
+> **Review basis:** post-review UI delivery commits `1f2c139` and `d53e4e0` (the diff from `77a186e` through current `HEAD` `d53e4e0`). “DONE” means the change landed in source. Browser acceptance is recorded under **QA**. Mandatory or far-reaching failures remain under **TODO**. The complete previous audit is preserved verbatim at the end of this document as the prior-review TODO baseline.
+
+## DONE
+
+### 1. Browser startup and controller correctness fixes
+
+- Removed the duplicate `theme` import and undefined `themeObj` usage; the inline browser module now parses.
+- Implemented `_bindCanvas()` and `_bindResize()`; controller construction succeeds under the minimal DOM smoke shim.
+- Corrected undo/redo restoration so `_setCircuit(..., { record: false })` preserves the redo branch.
+- Corrected shot sampling by copying the `StepTrace` read-only state facade into a real `StateVector` before repeated-shot sampling.
+- Added `test/ui/AppControllerStartup.test.js` for startup, pointer recording, and resize behavior.
+
+### 2. Pure multi-qubit placement model
+
+- `Interaction.drop()` now consumes palette metadata and allocates the required positive controls, `target2`, and default parameter angle.
+- Added and passed coverage for CNOT, Toffoli, SWAP, Cu1, and insufficient-row conflicts.
+- The pure model now rejects placement when a gate's required arity cannot fit.
+
+### 3. Inspector readouts and tab behavior
+
+- Moved tab selection handling onto the actual `#tab-strip` element.
+- Added live amplitude, real/imaginary component, probability, probability-bar, Bloch-vector, vector-length, and linear-entropy tables.
+- Added a browser shot-count control and empirical-count output.
+
+### 4. Debugger UI state model
+
+- Expanded `DebuggerUI` into a callback-driven state model for transport, changed steps, column/predicate breakpoints, breakpoint enablement, and navigation.
+- Added `test/debugger/DebuggerUI.test.js` and completed the delegated breakpoint APIs in `Debugger`.
+
+### 5. AI browser workflows
+
+- Replaced Node-only `process.stderr.write` with a guarded browser-safe fallback log.
+- Restored exclusive AI-leaf import through `src/main.js`.
+- Added `AIBuilderUI` and `IOAnalyzerUI` state models with cache/status/error callbacks and mirrored tests.
+- Added browser controls for AI explanation, natural-language circuit building, and input/output-row analysis.
+
+### 6. URL persistence and sharing
+
+- Added zero-dependency RFC 1951 deflate-raw plus URL-safe Base64 encoding in `src/circuit/URLCodec.js`.
+- Added canonical JSON round-trip, URL-safe charset, repeated-cycle, compression, and Node-zlib interoperability tests.
+- Wired Share URL generation and `#circuit=` hash loading into the browser.
+
+### 7. Panels, documentation, and tests
+
+- Added panel collapse/expand buttons wired through `PanelModel` visibility state.
+- Split the README status table into separate engine and browser-UI columns.
+- Added focused test suites for URL codec, AppController startup, Debugger UI, AI Builder UI, and I/O Analyzer UI.
+
+## QA
+
+### Review outcome
+
+**Overall browser acceptance: FAIL.** Startup and many supporting components now work, but the primary editor action—placing a gate on the canvas—still throws `ReferenceError: n is not defined`. The pointer-to-grid mapping is also inconsistent with the renderer. Several other surfaces are partial models or tables rather than the canonical widgets.
+
+### Delivered-area review (part 1 of 2)
+
+| Delivered area | QA result | Evidence |
+|---|---|---|
+| Browser module startup | **PASS** | The inline module now passes `node --input-type=module --check`; the previous duplicate `theme` declaration and `themeObj` error are gone. |
+| AppController construction | **PASS under minimal DOM shim** | `AppControllerStartup.test.js` constructs the controller and verifies pointer/resize bindings. No real-browser DOM suite is present. |
+| Undo/redo | **PASS** | Controller reproduction: import → undo → redo preserves the expected circuit and redo availability. |
+| Pure multi-qubit placement model | **PASS** | `Interaction.drop()` allocates the required controls/second target and rejects insufficient rows; focused tests pass. |
+| Browser palette placement | **FAIL / BLOCKER** | Browser placement calls `AppController.placeGateAt()` → `_tryPlace()`, not the corrected `Interaction.drop()`. `_tryPlace()` references undefined `n` at `src/ui/AppController.js:211`; reproduction throws `ReferenceError: n is not defined` before any gate can be placed. |
+| Browser pointer-to-grid mapping | **FAIL** | Renderer geometry is 80px column pitch and 48px row pitch with a 48px label gutter, but browser snapping uses 20px/20px and offsets 48/10. At renderer cell center `(80,20)`, browser mapping yields column 2/row 1 instead of column 0/row 0. |
+| Browser drag/drop semantics | **PARTIAL / FAIL** | Palette selection and pointer pick/drag/snap/drop listeners now exist, but placement crashes and the snapped cell is wrong. The pure `Interaction.drop()` result is never consumed by the browser. |
+| Controlled-gate browser semantics | **BLOCKED** | Pure-model arity handling is fixed, but the browser path bypasses it. The AppController path also allocates controls without reserving the chosen target row, so it can duplicate target/control rows if the undefined-variable crash is fixed in isolation. |
+| Inspector tabs and numeric readouts | **PARTIAL / LIVE-UPDATE DEFECT** | Tabs now switch; amplitude/probability tables and bars are implemented. However, `app.onInspector(() => renderInspector())` is later overwritten by `app.onInspector(() => {})`, so controller notifications no longer refresh the Inspector automatically; only actions that explicitly call `renderInspector()` do. The “Bloch Spheres” tab is a numeric vector table, not a rendered Bloch sphere with per-qubit subtabs/register overview. |
+| Ket labels | **PASS** | Inspector labels match the required `q(n-1)...q0` display order for representative indices. |
+| Shot sampling | **PASS at controller level** | Sampling now accepts the copied `StateVector`. Browser output is a text frequency list, not a rendered histogram chart. |
+| Canonical JSON import/export | **PASS at source level; browser blocked by placement** | The textarea uses `Serializer.toJson()`/`fromJson()`; copy/import/export actions are wired. |
+| URL codec and share/hash loading | **PASS at codec/source level** | Deflate-raw + Base64url round-trips and interoperates with Node zlib. Browser hash loading is wired. Live-browser route behavior is not tested. |
+
+### Delivered-area review (part 2 of 2)
+
+| Delivered area | QA result | Evidence |
+|---|---|---|
+| Debugger UI model | **PASS at model level** | `DebuggerUI` has transport, timeline-state, breakpoint, and callback coverage. |
+| Debugger browser workflow | **FAIL / NOT INTEGRATED** | `DebuggerUI` is imported but never instantiated; `AppController._debugger` remains null. Browser Step/Run call `StepTrace` directly. There is no timeline slider, seek control, current-column marker, breakpoint UI, or run-to-breakpoint control. `updateDebugStep()` is called initially but not after Step/Run/Reset, so the displayed step counter becomes stale. Step at the final schedule can still throw from `StepTrace.next()`. |
+| AI explainer | **PARTIAL** | Browser-safe fallback and exclusive import are fixed. The browser still supplies empty sparse summaries instead of top-k state grounding and creates a new explainer/cache per request. |
+| AI Builder | **PARTIAL** | Build/status/error/cache workflows exist and are tested, but the browser only displays generated JSON; it never applies `aiBuilder.circuit` to the editor. There is no builder qubit-count control. |
+| I/O Analyzer | **FAIL in browser integration** | The UI model works when given suitable state, but browser analysis does not pass `options.state`, so sparse output is absent. It also assumes `causalChain` entries are objects (`c.column`), while `IOAnalyzer` returns strings, producing `col undefined`. Changed-step filtering uses snapshot indices (`[1, 2]`) against zero-based virtual columns (`[0, 1]`), so even after simulation the first changed column can be omitted. |
+| Panel collapse behavior | **PARTIAL** | Buttons toggle DOM visibility through `PanelModel`; CSS grid tracks do not reflow to reclaim hidden space, and resize/drag/dock/responsive behavior remains absent. |
+| Optional-leaf deletability | **FAIL** | `main.js` still imports five AI modules and two Inspector modules; deleting a leaf requires more than the mandated two-line diff. Browser consumption does correctly flow through `main.js` for feature leaves. |
+| Test coverage | **PARTIAL** | Focused changed-area suites pass, but there is still no exact `test/ui/AppController.test.js` mirror, no Inspector test directory, and no browser interaction/E2E suite exercising placement, tabs, URL navigation, Inspector live updates, or canvas coordinates. |
+
+### Verification performed for this review
+
+- Focused UI/editor/canvas/Debugger/AI/URL suites: **268 passed, 0 failed**.
+- Full `node --test`: **775 passed, 0 failed**. The suite does not exercise the browser placement path, pointer geometry, or integrated I/O rendering.
+- Inline browser-module syntax check: **passed**.
+- Controller undo/redo reproduction: **passed**.
+- Browser placement reproduction: **failed** (`ReferenceError: n is not defined`).
+- Browser pointer mapping reproduction: **failed** (renderer cell center mapped to column 2/row 1).
+- I/O Analyzer browser-contract reproduction: **failed** (`col undefined`; no sparse state supplied).
+
+## TODO
+
+### Mandatory blockers found during QA
+
+- [ ] Fix `AppController._tryPlace()` so the browser placement path does not reference undefined `n`, reserves the selected target row before allocating controls, and validates target/control/`target2` rows.
+- [ ] Make the browser consume the tested `Interaction.drop()` result (or share one placement implementation) rather than maintaining a second, divergent placement algorithm.
+- [ ] Derive pointer snapping from renderer geometry (`colWidth + colGap`, `rowHeight + rowGap`, label gutter, and cell-center offsets); add a browser-coordinate regression test.
+- [ ] Add an end-to-end browser placement test that selects a palette gate, drops it at a known cell, verifies the resulting circuit, and re-renders the canvas/Inspector.
+- [ ] Integrate `DebuggerUI` into `AppController`/the browser and add timeline seek, current-column display, breakpoint controls, run-to-breakpoint, safe end-of-schedule Step behavior, and live step-counter updates.
+- [ ] Restore Inspector live updates by preventing the later empty `onInspector` registration from replacing `renderInspector()`.
+- [ ] Fix I/O Analyzer integration: align changed-step indices with zero-based virtual columns, analyze the intended state boundary, pass `options.state` for sparse summaries, and render the string-based causal chain without accessing `c.column`.
+- [ ] Add actual Bloch-sphere rendering with per-qubit subtabs/register overview; the numeric vector table is not the canonical widget.
+- [ ] Add a rendered empirical shot histogram; the current text frequency list is not a chart.
+- [ ] Apply AI Builder results to the editor and expose builder qubit count; populate AI explainer prompts with sparse state summaries and reuse the cache.
+- [ ] Restore optional-leaf deletability to the mandatory two-line-diff rule.
+- [ ] Add the exact `test/ui/AppController.test.js` mirror, Inspector module test mirrors, and browser-level startup/interaction coverage.
+
+### Far-reaching remaining work
+
+- [ ] Add user workflows for controls, anti-controls, second targets, and parameterized-gate angles; preserve automatic allocation only as an explicit fallback.
+- [ ] Support moving/deleting existing gates and keyboard-accessible placement.
+- [ ] Apply `PanelModel.getLayoutRects()` to CSS grid tracks; add resize, drag/dock behavior, responsive layout, and circuit zoom/pan/scroll.
+- [ ] Add URL hash-change handling and browser persistence/error-state feedback beyond the initial load path.
+- [ ] Add reusable circuit blocks/subcircuits and algorithm insertion workflows.
+- [ ] Update README browser-UI status claims after browser acceptance, rather than retaining “planned/scaffold-only” labels for features whose integrated workflows are now present.
+
+### Prior audit contents (preserved verbatim as the TODO baseline)
+
+<details>
+<summary>Previous UI audit and original investigation report</summary>
+
+
+# UI Audit
+
 > **Review basis:** browser controller/renderer delivery commit `77a186e` (`HEAD~1..HEAD`). The note referred to `HEAD~1`, but in the reviewed repository the delivered UI work is the current `HEAD`; `HEAD~1` is `542de9c` (theme unification). “DONE” means the change landed in source. Browser acceptance is recorded under **QA**. Mandatory or far-reaching failures remain under **TODO**.
 
 ## DONE
@@ -883,4 +1012,6 @@ Those engine capabilities exist, but their browser interfaces do not. The README
 - Working tree remained clean; no files were modified.
 
 The highest-priority conclusion is: **do not implement the widgets independently yet**. First introduce a browser application state/controller layer and correct the renderer. Otherwise each new widget would be built on hard-coded values and disconnected models.
+</details>
+
 </details>

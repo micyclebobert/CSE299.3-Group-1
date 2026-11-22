@@ -47,7 +47,7 @@ describe('IOAnalyzerUI', () => {
     });
     ui.setInputRows([0]);
     ui.setOutputRows([0, 1]);
-    const stepTrace = makeStepTrace([0, 1]);
+    const stepTrace = makeStepTrace([1, 2]);
     const result = ui.analyze(bellInstructions, stepTrace);
 
     assert.equal(ui.status, 'ok');
@@ -78,7 +78,7 @@ describe('IOAnalyzerUI', () => {
     const ui = new IOAnalyzerUI({ numQubits: 2 });
     ui.setInputRows([0]);
     ui.setOutputRows([1]);
-    const stepTrace = makeStepTrace([0]);
+    const stepTrace = makeStepTrace([1]);
     const result = ui.analyze(
       [{ gateId: 'H', target: 0, controls: [], column: 0, virtualColumn: 0 }],
       stepTrace
@@ -96,7 +96,7 @@ describe('IOAnalyzerUI', () => {
     });
     ui.setInputRows([0]);
     ui.setOutputRows([0, 1]);
-    const stepTrace = makeStepTrace([0, 1]);
+    const stepTrace = makeStepTrace([1, 2]);
     ui.analyze(bellInstructions, stepTrace);
     assert.equal(ui.cacheHit, false);
     const firstKey = ui.cacheKey;
@@ -116,7 +116,7 @@ describe('IOAnalyzerUI', () => {
     ]);
     const state = makeState(amps, 2);
     const ui = new IOAnalyzerUI({ numQubits: 2 });
-    const stepTrace = makeStepTrace([0, 1]);
+    const stepTrace = makeStepTrace([1, 2]);
     const result = ui.analyze(bellInstructions, stepTrace, { state });
 
     assert.equal(ui.status, 'ok');
@@ -134,7 +134,7 @@ describe('IOAnalyzerUI', () => {
 
   it('setStateVector clears analysis and sparse', () => {
     const ui = new IOAnalyzerUI({ numQubits: 2 });
-    const stepTrace = makeStepTrace([0]);
+    const stepTrace = makeStepTrace([1]);
     ui.analyze(bellInstructions, stepTrace);
     assert.equal(ui.status, 'ok');
 
@@ -182,7 +182,7 @@ describe('IOAnalyzerUI', () => {
 
   it('clearCache forces re-analysis', () => {
     const ui = new IOAnalyzerUI({ numQubits: 2 });
-    const stepTrace = makeStepTrace([0, 1]);
+    const stepTrace = makeStepTrace([1, 2]);
     ui.analyze(bellInstructions, stepTrace);
     assert.equal(ui.cacheHit, false);
     ui.clearCache();
@@ -193,7 +193,7 @@ describe('IOAnalyzerUI', () => {
 
   it('reset clears all state', () => {
     const ui = new IOAnalyzerUI({ numQubits: 2 });
-    const stepTrace = makeStepTrace([0, 1]);
+    const stepTrace = makeStepTrace([1, 2]);
     ui.analyze(bellInstructions, stepTrace);
     ui.reset();
     assert.deepEqual(ui.inputRows, []);

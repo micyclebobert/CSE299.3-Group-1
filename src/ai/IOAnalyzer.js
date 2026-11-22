@@ -92,7 +92,7 @@ function analyzeIO(instructions, inputRows, outputRows, stepTrace) {
   const outputAffectedColumns = [];
 
   for (const col of columns) {
-    const isChanged = changedSet === null || changedSet.has(col.virtualColumn);
+    const isChanged = changedSet === null || changedSet.has(col.virtualColumn + 1);
     if (!isChanged) continue;
     touchedColumns.push(col);
     const touchesInput = col.touchedRows.some((r) => inputSet.has(r));

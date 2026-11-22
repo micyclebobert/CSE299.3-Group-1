@@ -88,12 +88,19 @@ const catalog = gateCatalog();
 // Deleting any leaf folder requires at most a 2-line diff in this file.
 // ---------------------------------------------------------------------------
 
+// debugger/ (2 lines)
 import { DebuggerUI } from './debugger/DebuggerUI.js';
+import { Debugger } from './debugger/Debugger.js';
+
+// inspector/ (2 lines)
 import { Inspector } from './inspector/Inspector.js';
 import { InspectorUI } from './inspector/InspectorUI.js';
+
+// ai/ (6 lines)
 import { AIExplainer } from './ai/AIExplainer.js';
 import { IOAnalyzer } from './ai/IOAnalyzer.js';
 import { AIBuilder } from './ai/AIBuilder.js';
+import { SparseSummary } from './ai/SparseSummary.js';
 import { AIBuilderUI } from './ai/AIBuilderUI.js';
 import { IOAnalyzerUI } from './ai/IOAnalyzerUI.js';
 import { Cache } from './ai/Cache.js';
@@ -121,4 +128,4 @@ export { snapCell } from './editor/Interaction.js';
 // Discardable feature leaf exports (browser controller consumes these).
 // ---------------------------------------------------------------------------
 
-export { DebuggerUI, InspectorUI, Inspector, AIExplainer, IOAnalyzer, AIBuilder, AIBuilderUI, IOAnalyzerUI, Cache };
+export { DebuggerUI, Debugger, InspectorUI, Inspector, AIExplainer, IOAnalyzer, AIBuilder, AIBuilderUI, IOAnalyzerUI, Cache, SparseSummary };

@@ -17,16 +17,20 @@ import { gateControlCount, gateNeedsTarget2 } from '../editor/gatePalette.js';
 export class AppController {
   constructor({
     history, interaction, catalog, theme, Inspector,
+    Debugger, DebuggerUI,
     AIBuilderUI, IOAnalyzerUI,
-    canvasEl, paletteEl, inspectorEl, codeEl, statusEl,
+    canvasEl, paletteEl, inspectorEl, codeEl, statusEl, cache,
   }) {
     this._history = history;
     this._interaction = interaction;
     this._catalog = catalog;
     this._theme = theme;
     this._Inspector = Inspector;
+    this._Debugger = Debugger || null;
+    this._DebuggerUI = DebuggerUI || null;
     this._AIBuilderUI = AIBuilderUI || null;
     this._IOAnalyzerUI = IOAnalyzerUI || null;
+    this._cache = cache || null;
 
     this._canvasEl = canvasEl;
     this._ctx = canvasEl.getContext('2d');
@@ -38,6 +42,7 @@ export class AppController {
     this._currentCircuit = null;
     this._stepTrace = null;
     this._debugger = null;
+    this._debuggerUI = null;
     this._inspector = null;
     this._aiBuilder = null;
     this._ioAnalyzer = null;
@@ -75,6 +80,10 @@ export class AppController {
   get canRedo() { return this._history.canRedo(); }
   get aiBuilder() { return this._aiBuilder; }
   get ioAnalyzer() { return this._ioAnalyzer; }
+  get cache() { return this._cache; }
+  get builderNumQubits() { return this._aiBuilder ? this._aiBuilder.numQubits : 0; }
+  get debuggerUI() { return this._debuggerUI; }
+  get debugger() { return this._debugger; }
 
   resetCircuit(numQubits = 2) {
     const circuit = new Circuit({ numQubits, columns: [] });
@@ -93,6 +102,11 @@ export class AppController {
     const schedule = scheduleColumns(instructions);
     this._stepTrace = new StepTrace(schedule, circuit.numQubits);
     this._inspector = new this._Inspector(this._stepTrace);
+    if (this._Debugger) {
+      this._debugger = new this._Debugger(this._stepTrace);
+      this._debuggerUI = new this._DebuggerUI(this._debugger);
+      this._debuggerUI.onStepChange(() => this.notify());
+    }
     if (record) this._history.push(circuit);
     this.notify();
   }
@@ -193,6 +207,7 @@ export class AppController {
 
   _tryPlace(entry, column, row) {
     const circuit = this._currentCircuit;
+    const n = circuit.numQubits;
     const existing = circuit.columns[column] ?? null;
     const usedRows = new Set();
     if (existing) {
@@ -203,13 +218,14 @@ export class AppController {
       }
     }
     if (usedRows.has(row)) return { circuit: null, conflict: true, reason: 'row occupied in column' };
+    usedRows.add(row);
 
     const controlsNeeded = gateControlCount(entry.name);
     const needsTarget2 = gateNeedsTarget2(entry.name);
-    const totalNeeded = 1 + controlsNeeded + (needsTarget2 ? 1 : 0);
+    const extraNeeded = controlsNeeded + (needsTarget2 ? 1 : 0);
     let freeCount = 0;
     for (let r = 0; r < n; r += 1) if (!usedRows.has(r)) freeCount += 1;
-    if (freeCount < totalNeeded) return { circuit: null, conflict: true, reason: 'insufficient free rows for gate arity' };
+    if (freeCount < extraNeeded) return { circuit: null, conflict: true, reason: 'insufficient free rows for gate arity' };
 
     const controls = [];
     for (let r = 0; r < n && controls.length < controlsNeeded; r += 1) {
@@ -241,6 +257,15 @@ export class AppController {
     return { circuit: nextCircuit, conflict: false };
   }
 
+  applyCircuit(circuit) {
+    this._setCircuit(circuit);
+    this._status('AI Builder circuit applied to editor.');
+  }
+
+  setBuilderNumQubits(numQubits) {
+    if (this._aiBuilder) this._aiBuilder.setNumQubits(numQubits);
+  }
+
   undo() {
     const prev = this._history.undo();
     if (prev) {
@@ -267,17 +292,43 @@ export class AppController {
   }
 
   reset() {
-    if (!this._stepTrace) return;
-    this._stepTrace.reset();
+    if (!this._debugger) return;
+    this._debugger.reset();
     this.notify();
     this._status('Reset to |0...\u232a at step 0.');
   }
 
   step() {
-    if (!this._stepTrace) return;
-    this._stepTrace.next();
+    this.stepDebugger();
+  }
+
+  stepDebugger() {
+    if (!this._debugger) return;
+    this._debugger.next();
     this.notify();
   }
+
+  runToBreakpoint() {
+    if (!this._debugger) return;
+    this._debugger.runToBreakpoint();
+    this.notify();
+  }
+
+  seekDebugger(col) {
+    if (!this._debugger) return;
+    this._debugger.seek(col);
+    this.notify();
+  }
+
+  addBreakpoint(col) { return this._debugger?.addColumnBreakpoint(col); }
+  removeBreakpoint(col) { return this._debugger?.removeColumnBreakpoint(col); }
+  toggleBreakpoint(col) { return this._debugger?.toggleColumnBreakpoint(col); }
+  getBreakpoints() { return this._debugger?.getColumnBreakpoints() ?? []; }
+  hasBreakpoint(col) { return this._debugger?.hasColumnBreakpoint(col) ?? false; }
+  getDebuggerStep() { return this._debuggerUI?.getCurrentStep() ?? 0; }
+  getDebuggerTotal() { return this._debuggerUI?.getTotalSteps() ?? 0; }
+  isDebuggerAtStart() { return this._debuggerUI?.isAtStart() ?? true; }
+  isDebuggerAtEnd() { return this._debuggerUI?.isAtEnd() ?? true; }
 
   seek(col) {
     if (!this._stepTrace) return;

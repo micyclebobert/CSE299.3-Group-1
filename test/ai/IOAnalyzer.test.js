@@ -34,7 +34,7 @@ const singleQInstructions = [
 
 describe('IOAnalyzer', () => {
   it('Bell circuit: input row 0 affects both output rows via H+CNOT', () => {
-    const stepTrace = makeStepTrace([0, 1]);
+    const stepTrace = makeStepTrace([1, 2]);
     const analysis = IOAnalyzer.analyzeIO(
       bellInstructions,
       [0],
@@ -55,7 +55,7 @@ describe('IOAnalyzer', () => {
       { gateId: 'H', target: 0, controls: [], column: 0, virtualColumn: 0 },
       { gateId: 'X', target: 1, controls: [], column: 0, virtualColumn: 0 },
     ];
-    const stepTrace = makeStepTrace([0]);
+    const stepTrace = makeStepTrace([1]);
     const analysis = IOAnalyzer.analyzeIO(instrs, [0], [1], stepTrace);
     assert.equal(analysis.touchedColumns.length, 1);
     assert.equal(analysis.touchedColumns[0].virtualColumn, 0);
@@ -63,7 +63,7 @@ describe('IOAnalyzer', () => {
   });
 
   it('no shared columns between input and output rows', () => {
-    const stepTrace = makeStepTrace([0]);
+    const stepTrace = makeStepTrace([1]);
     const analysis = IOAnalyzer.analyzeIO(
       singleQInstructions,
       [0],
@@ -81,14 +81,14 @@ describe('IOAnalyzer', () => {
       { gateId: 'H', target: 0, controls: [], column: 1, virtualColumn: 1 },
     ];
     // Only column 0 changed per StepTrace.
-    const stepTrace = makeStepTrace([0]);
+    const stepTrace = makeStepTrace([1]);
     const analysis = IOAnalyzer.analyzeIO(instrs, [0], [0], stepTrace);
     assert.equal(analysis.touchedColumns.length, 1);
     assert.equal(analysis.touchedColumns[0].virtualColumn, 0);
   });
 
   it('causal chain entries are descriptive strings', () => {
-    const stepTrace = makeStepTrace([0, 1]);
+    const stepTrace = makeStepTrace([1, 2]);
     const analysis = IOAnalyzer.analyzeIO(bellInstructions, [0], [1], stepTrace);
     assert.equal(analysis.causalChain.length, 2);
     assert.ok(analysis.causalChain[0].includes('virtual column 0'));
