@@ -1,121 +1,111 @@
 # SimQC UI Plan
 
-> **Current tracker:** browser UI state as of commit `4dd3ef8` (`UI 2`). This file supersedes the live checklist in `docs/Plans/UI Audit Historical.md`; that document is retained unchanged as the historical audit trail. “DONE” means the implementation landed, “QA” records reviewed behavior, and “TODO” is the complete remaining UI backlog.
+> **Current tracker:** browser UI state as of commit `4b867a4` (`UI 3`), reviewed against baseline `4dd3ef8` (`UI 2`). This file supersedes the live checklist in `docs/Plans/UI Audit Historical.md`; that document is retained unchanged as the historical audit trail. “DONE” means the implementation landed, “QA” records reviewed behavior, and “TODO” is the complete remaining UI backlog.
 
 ## DONE
 
 ### Application shell and controller
 
-- The browser entry is now a small module script (`index.html` → `src/ui/browser-app.js`) rather than a large inline script.
-- Browser behavior is split into focused UI modules for placement, canvas painting, Inspector, Debugger, Code, AI Builder, AI Explainer, I/O Analyzer, and panels.
+- The browser entry is a small module script (`index.html` → `src/ui/browser-app.js`); browser behavior is split into focused placement, canvas, Inspector, Debugger, Code, AI, and panel modules.
 - `AppController` owns the mutable circuit, `StepTrace`, history, Inspector, Debugger/DebuggerUI, AI Builder, I/O Analyzer, cache, shot count, selection, and pointer state.
-- Undo/redo restores history snapshots without pushing a new edit or truncating the redo branch.
-- Circuit edits recreate the `StepTrace`, Inspector, Debugger, and DebuggerUI state coherently.
+- Undo/redo restores history snapshots without pushing a new edit or truncating the redo branch; circuit edits recreate the `StepTrace`, Inspector, Debugger, and DebuggerUI coherently.
 - Canonical JSON import/export, copy, simulation/reset, and undo/redo controls are wired.
+- The new Inspector view was split into State, Bloch, histogram, and tab modules without introducing inter-feature imports.
 
 ### Gate placement and renderer
 
 - The prior `ReferenceError: n is not defined` placement crash is fixed.
-- Browser pointer snapping was revised to use the renderer’s 80px column pitch and 48px row pitch; the remaining column-center offset defect is tracked under QA/TODO.
-- Selected target rows are reserved before controls and second targets are allocated.
-- CNOT/CZ/Toffoli/SWAP/Cu1 arity metadata is available to the controller and pure `Interaction.drop()` model.
+- Browser pointer snapping now uses the renderer’s 80px column pitch, 48px row pitch, and gate-center origins `(80,20)`; tests cover gate centers and inter-column/row boundaries.
+- Browser pointer placement consumes `Interaction.drop()`, reserves the selected target row before allocating controls/`target2`, rejects insufficient-row arity, and creates explicit empty gap columns when a dropped column is beyond the current schedule.
+- `AppController.placeGateAt()` rejects negative/out-of-range rows and invalid direct-call columns with status feedback.
 - Renderer corrections include the label gutter, visible qubit rows, centre-aligned control lines, control dots, CNOT target symbol, SWAP connection, parameter labels, and DPR-safe canvas sizing.
 - Row-level purity glow is state-driven rather than inferred from the presence of controls.
 
 ### Inspector
 
-- The Inspector has working Amplitudes, Probabilities, and Bloch Spheres tabs.
-- Amplitude and probability tables show live big-endian ket labels, real/imaginary components, probabilities, and probability bars.
-- Bloch Spheres includes a register overview and per-qubit subtabs with vector magnitude and linear-entropy readouts.
-- Repeated-shot sampling renders an empirical histogram chart.
-- Inspector live-update registration is no longer overwritten by a no-op callback.
-- All five Inspector feature modules now have 1:1 test mirrors under `test/inspector/`.
+- The top-level Inspector hierarchy is now State and Bloch Spheres; State composes amplitude/probability tables and a state-vector probability chart, while Bloch Spheres retains per-qubit subtabs and a register overview.
+- Amplitude tables include phase, and all Inspector canvases use resolved theme colors rather than CSS custom-property strings.
+- Bloch projection now includes the y/depth component, and the selected per-qubit subtab persists across state re-renders.
+- The histogram canvas is DPR-aware and renders every basis outcome for states up to the 256-bar display cap; it currently shows expected counts rather than sampled empirical counts.
+- Inspector live-update registration is no longer overwritten by a no-op callback, and all Inspector feature/view modules have 1:1 test mirrors.
 
 ### Debugger
 
-- `Debugger` and `DebuggerUI` are instantiated by `AppController`.
+- `Debugger` and `DebuggerUI` are instantiated by `AppController`; `simulate()` now advances through Debugger callbacks so the displayed debugger step agrees with the trace.
 - The browser exposes Step, Run, Reset, timeline scrub, current/total step, breakpoint toggle, and Run-to-Breakpoint controls.
+- The timeline view refreshes its `max`/`value` on transport/toggle actions, and breakpoint controls validate columns and show an active-state list; valid breakpoints survive circuit edits within the new schedule length.
 - `DebuggerUI` exposes transport, timeline, breakpoint, navigation, and callback state with a 1:1 test mirror.
 
 ### AI and Code/AI panel
 
-- AI fallback logging is browser-safe.
-- AI feature leaves are consumed through `src/main.js`, preserving exclusive leaf imports.
+- AI fallback logging is browser-safe, and AI feature leaves are consumed through `src/main.js`, preserving exclusive leaf imports.
 - AI Builder exposes prompt and qubit-count inputs, build status/errors, caching, generated JSON, and application of the generated circuit to the editor.
-- AI Explainer reuses one explainer/cache and supplies sparse current-state grounding.
-- I/O Analyzer exposes input/output rows, causal-chain output, and sparse top-k display.
+- AI Explainer builds one sparse top-$k$ summary per virtual column and includes the column set in its cache identity.
+- I/O Analyzer exposes input/output rows, causal-chain output, sparse top-k display, and a state-step-sensitive cache identity.
 - Canonical JSON is editable, importable, exportable, copyable, and shareable through the compressed URL codec.
 
 ### URL, panels, documentation, and tests
 
-- `URLCodec` provides zero-dependency deflate-raw plus URL-safe Base64 encoding with Node-zlib interoperability tests.
-- Initial `#circuit=` hash loading is implemented.
+- `URLCodec` provides zero-dependency deflate-raw plus URL-safe Base64 encoding with Node-zlib interoperability tests, and initial `#circuit=` hash loading is implemented.
 - Panel collapse/expand buttons are connected through `PanelModel` visibility state.
 - README status separates engine implementation from browser UI implementation.
 - Focused tests cover AppController placement/startup, Inspector leaves, Debugger UI, AI UI, URL codec, editor interaction, canvas rendering, panels, and theme behavior.
+- Exact test mirrors now exist for the nine surviving modules from the original ten-module UI list, the four replacement Inspector view modules, and `src/main.js`; a DOM-shim integration suite covers controller startup, placement, transport, serialization, AI handlers, and panel state.
 
 ## QA
 
 ### Review outcome
 
-**Overall browser acceptance: PARTIAL / FAIL.** The latest wave fixes the previous placement, Inspector, Debugger, AI, I/O, URL, and module-organization blockers. Core source-level workflows are substantially implemented, but the browser still has important correctness and usability gaps: placement accepts invalid coordinates, `simulate()` can leave the Debugger’s displayed step stale, Bloch/histogram canvases use CSS-variable strings that the Canvas API cannot resolve directly, the I/O cache is not state-sensitive, and no real-browser interaction suite exists.
+**Overall browser acceptance: PARTIAL / FAIL.** The `UI 3` wave closes the baseline pointer-origin, Debugger-step, Canvas-theme, Bloch-depth, Inspector-hierarchy, and I/O stale-cache findings, and adds broad DOM-shim coverage. Acceptance is still not complete: there is no real-browser run; the Inspector histogram is expected-frequency rendering rather than repeated-shot sampling; timeline refresh is not guaranteed after every circuit replacement; coordinate validation has non-finite/fractional holes; optional-leaf deletability and UI naming/test-mirror conventions remain incomplete; and accessibility, layout, persistence, and broader editor workflows are still open.
 
 ### Latest-wave review
 
 | Area | QA result | Evidence |
 |---|---|---|
-| Browser startup/module graph | **PASS at static level** | `index.html` now loads `src/ui/browser-app.js`; all UI modules pass syntax checks. No browser runtime/E2E harness is available in the repository. |
-| Valid palette placement | **PASS at controller level** | H at `(0,0)` creates the expected circuit/history entry; CNOT reserves its target row; Toffoli conflicts in a two-qubit circuit. |
-| Placement coordinate validation | **FAIL** | `AppController.placeGateAt()` accepts negative columns and rows beyond `numQubits`; invalid requests report success and can create inaccessible columns or out-of-range targets. |
-| Pointer snapping | **PARTIAL / FAIL** | Pitch values now match the renderer, but `snapCell()` interprets its offset as a cell origin. The browser passes `colOffset: 48` (the label gutter/gate left edge), so the first gate center at `x=80` maps to column 0 only because of rounding; the midpoint between columns is also shifted by 32px. Use the gate-center origin (`labelGutter + colWidth/2 = 80`) or make the mapping formula explicitly center-based, with boundary tests. |
-| Debugger transport/counter | **PARTIAL / FAIL** | Step/Run/Reset, seek, breakpoint, and run-to-breakpoint controls exist, but `AppController.simulate()` advances `_stepTrace` directly while `DebuggerUI` listens to `Debugger` callbacks; reproduction shows trace step `1` while displayed debugger step remains `0`. |
-| Timeline/breakpoint presentation | **PARTIAL** | Timeline max remains `0`; no code updates it as circuit length changes. Breakpoints have controls but no canvas markers, list, active-state feedback, or persistence across circuit edits. |
-| Inspector readouts | **PASS for tables** | Tabs, amplitude/probability tables, ket labels, Bloch subtabs, and entropy readouts are implemented. Inspector modules have mirrored tests. |
-| Bloch/histogram canvas colors | **FAIL / VISUAL DEFECT** | `src/ui/inspector-view.js` assigns strings such as `var(--simqc-border-strong)` directly to `ctx.strokeStyle`/`ctx.fillStyle`; Canvas 2D does not resolve CSS custom-property expressions, so intended theme colors are not applied. |
-| Bloch geometry | **PARTIAL** | The arrow projects only x and z and omits the y/depth component from the drawn endpoint; the displayed vector text includes y, so the visualization can misrepresent `|i>`/`|-i>` states. |
-| Shot histogram | **PASS functionally / FAIL visually** | A real empirical bar chart is rendered and labels are correct, but it shares the invalid CSS-variable color issue. Sampling only occurs after “Sample,” not automatically on state changes. |
-| AI Builder | **PASS** | Qubit count is editable; successful builds apply the generated circuit to the editor and update code/Inspector output. |
-| AI Explainer | **PARTIAL** | One sparse summary is supplied for the entire prompt rather than one per virtual column, contrary to the sparse-per-column grounding contract. |
-| I/O Analyzer | **PARTIAL / FAIL** | Changed-step alignment, sparse state, and string rendering are fixed. Its cache key omits the trace/state boundary, so analyzing before and after simulation returns the cached earlier result. |
+| Browser startup/module graph | **PASS at static and DOM-shim level** | `index.html` loads `src/ui/browser-app.js`; all touched UI modules pass syntax checks; `test/ui/browser-app.test.js` imports the bootstrap under a DOM shim. No browser runtime/E2E harness is available in the repository. |
+| Valid palette placement | **PASS at controller/model level** | H at `(0,0)` creates the expected circuit/history entry; CNOT reserves its target row; Toffoli conflicts in a two-qubit circuit; the browser pointer path now consumes `Interaction.drop()`. |
+| Placement coordinate validation | **PARTIAL / FAIL** | Negative columns/rows and rows `>= numQubits` are rejected. Probe still finds `placeGateAt(NaN, 0, 'H')` reports success without editing, while fractional/NaN rows throw instead of returning a conflict/status. |
+| Pointer snapping | **PASS at source/model level** | Browser geometry is now `80/48` with center offsets `(80,20)`; tests cover column 0/1 centers, the `x=120` boundary, row boundary `y=44`, and cell edges. |
+| Debugger transport/counter | **PASS at controller/model level** | `simulate()` routes through `Debugger.next()`, and the focused probe reports debugger step equals total at the end. |
+| Timeline/breakpoint presentation | **PARTIAL / FAIL** | The slider max/value and breakpoint list refresh on transport/toggle actions, and breakpoints persist within a new schedule length. However, `deserialize()` reproduction leaves the slider at `max=0` while controller max becomes `1`; no current-column/breakpoint canvas markers exist. |
+| Inspector hierarchy/readouts | **PARTIAL** | Two top-level tabs and State/Bloch composition are implemented, with phase, probability chart, per-qubit subtabs, and a register overview. The canonical full state-vector text and complete purity/entropy register readout remain absent. |
+| Bloch/histogram canvas colors | **PASS at source level** | Canvas styles now use resolved `theme` hex values; repository search found no Canvas assignment of a `var(--simqc-...)` expression. |
+| Bloch geometry | **PASS at source/model level** | `projectBloch()` includes y as a signed depth offset; targeted probes distinguish `|i>` and `|-i>` endpoints. |
+| Shot histogram | **FAIL / SEMANTIC REGRESSION** | The new DPR-aware chart renders all outcomes up to its 256-bar cap with resolved colors, but it draws `probability * shots` expected counts and never calls `app.sampleShots()`; the label “Empirical shot histogram” is therefore inaccurate. |
+| AI Builder | **PASS at model/controller level** | Qubit count is editable; successful builds apply the generated circuit and update code/Inspector output. Browser/network acceptance and cache-model identity remain open. |
+| AI Explainer | **PARTIAL** | One sparse summary is now produced per virtual column and the column set enters cache identity. The view mutates/restores the private trace, exposes no state selector/context, and has a `Cache is not defined` fallback when no cache is injected. |
+| I/O Analyzer | **PARTIAL** | Sparse state, causal strings, changed-step alignment, and step-sensitive cache identity are fixed; the pre/post-simulation probe produces different keys and does not serve the stale entry. Pre-simulation analysis at step 0 still reports no shared columns, and the browser exposes no explicit boundary selector. |
 | Canonical JSON/URL | **PASS at source level** | Canonical round-trip and URL codec tests pass; initial hash load is wired. No hash-change listener, clipboard feedback, or malformed-route browser test exists. |
 | Panels/responsiveness | **PARTIAL** | Collapse buttons work, but fixed CSS grid tracks leave empty space when panels are hidden; resizing, dragging/docking, responsive reflow, zoom/pan, and layout persistence remain absent. |
 | Accessibility | **FAIL / MISSING** | No ARIA tab semantics, keyboard tab navigation, canvas labels/fallbacks, keyboard placement, focus management, or `aria-live` status updates are present. |
-| Feature-leaf deletability | **FAIL** | `main.js` still imports seven AI modules plus two Inspector modules and two Debugger modules; deleting a leaf requires more than the mandated two-line diff. |
-| Test mirrors | **PARTIAL** | AppController and Inspector mirrors now exist. The ten new `src/ui/*-view.js` modules have no 1:1 mirrored tests, and no browser interaction suite exists. |
-| Documentation/status | **PARTIAL** | README now separates engine/browser status, but several browser rows are marked “Done” despite the remaining validation, accessibility, persistence, and panel-layout gaps. |
+| Feature-leaf deletability | **FAIL** | AI imports are consolidated through `src/ai/registry.js`, but `main.js` still imports two Inspector and two Debugger modules, and `src/ai/registry.js` has no exact test mirror. Browser wiring also directly consumes leaf exports from `main.js`, so deletion still needs more than the mandated two-line diff. |
+| Test mirrors/integration | **PARTIAL** | Exact mirrors exist for the nine surviving modules from the original ten-module UI list, the four replacement Inspector view modules, and `main.js`. `test/ui/browser-integration.test.js` is a hand-built DOM shim, not a real-browser suite; `src/ai/registry.js` lacks a mirror. |
+| Documentation/status | **PARTIAL** | README now separates engine/browser status, but Extended Gates remains “Scaffold-only,” entanglement highlighting remains “Planned,” JSON/URL remains “In progress,” and density-matrix display is claimed done without an implementation. |
 
 ### Verification performed for this review
 
-- Focused UI/editor/canvas/Debugger/AI/Inspector/URL suites: **all passing**.
-- Full `node --test`: **807 passed, 0 failed**.
-- Placement boundary probe: **failed** (negative/out-of-range coordinates accepted).
-- Debugger counter probe: **failed** after `simulate()` (trace `1`, displayed debugger step `0`).
-- I/O cache probe: **failed** (post-simulation result served from the pre-simulation cache entry).
+- Focused UI/editor/canvas/Debugger/AI/Inspector/URL suites: **377 passed, 0 failed**.
+- Full `node --test`: **914 passed, 0 failed**.
+- Syntax checks for all `src/ui/*.js` plus touched AI/editor/main modules: **passed**.
+- Coordinate probe: **failed** on non-finite/fractional inputs (reported success or uncaught `TypeError`).
+- Timeline-after-import probe: **failed** (`controllerMax=1`, DOM slider `max=0`).
+- Histogram semantics probe: **failed** (`sampleShots()` calls `0`; expected counts rendered instead).
+- I/O cache probe: **passed** for distinct pre/post-simulation keys; boundary semantics remain partial.
 
 ## TODO
 
 ### P0 — Correctness and mandatory contract gaps
 
-- [x] Correct pointer snapping to use renderer gate centers (column origin `labelGutter + colWidth/2 = 80`, row origin `rowHeight/2 = 20`) or an explicitly center-based formula; add tests for both gate centers and inter-column boundaries.
-- [x] Validate placement coordinates before editing: reject negative columns, columns beyond the insertion point, negative rows, rows `>= numQubits`, and any target/control/`target2` row outside the circuit.
+- [ ] Complete placement-coordinate validation in `AppController.placeGateAt()` and `placeGateFromCell()`: require finite integers for column/row, return a conflict plus visible status for fractional/NaN inputs instead of reporting success or throwing, and keep the direct-call and browser-drop column-insertion policies consistent.
 - [ ] Validate `setShots()` input so non-numeric `shots` does not silently produce `NaN`; reject or clamp with visible status feedback.
-- [x] Define and test empty-column/gap semantics so dropping into column `k` creates or preserves the intended columns instead of silently appending to the end.
-- [x] Fix `_tryPlace` so targeting column `k` beyond the current length creates the intervening empty columns rather than silently appending only a single column.
-- [x] Unify the browser placement path with `Interaction.drop()` (or extract one shared placement kernel) so the controller and pure interaction model cannot drift again.
-- [x] Add a real browser/view-level placement test: select a palette gate, dispatch pointer events at a known cell, verify the resulting circuit, canvas repaint, Inspector update, code update, and undo history.
-- [x] Keep `StepTrace`, `Debugger`, and `DebuggerUI` synchronized: route `simulate()` through Debugger callbacks (or explicitly refresh DebuggerUI), and ensure current/total step, timeline value, Inspector state, and canvas purity all agree after every transport action.
-- [x] Update the timeline slider’s `max` and `value` whenever the circuit/schedule changes; reject or clamp invalid breakpoint-column input with visible status feedback.
-- [x] Preserve and visualize breakpoint state: show active breakpoints in a list and/or on the canvas, expose active/enabled state, retain breakpoints across navigation, and define whether edits preserve or clear them.
-- [x] Define the I/O Analyzer state boundary explicitly (for example, final state or user-selected virtual column), analyze that boundary, and include the boundary/state identity in the cache key so pre-simulation results cannot be served after simulation.
-- [x] Supply the AI Explainer with one sparse top-$k$ summary per virtual column, not one summary for the whole prompt; ensure cache identity also reflects the analyzed state when summaries differ by step.
-- [x] Replace CSS-variable strings in Canvas 2D style assignments with resolved theme values (`getComputedStyle()` or imported hex constants) for the Bloch sphere and histogram.
-- [x] Correct Bloch-sphere projection so all three vector components are represented; the current drawn endpoint uses only x and z and can misrepresent `|i>`/`|-i>` states.
-- [x] Bring the Inspector hierarchy in line with the canonical contract: two top-level tabs—State (amplitudes, probabilities, shot histogram) and Bloch Spheres (per-qubit subtabs plus register overview)—rather than three top-level tabs plus an external histogram.
-- [x] Add phase display to the amplitude/state readout and render an amplitude/probability chart with sufficient interactive/visual detail for the canonical Inspector.
-- [x] Render every basis outcome in the empirical histogram (including zero-count outcomes) instead of collapsing omitted states into a generic “rest” bar; apply high-DPI sizing to Inspector canvases.
-- [x] Restore optional-leaf deletability to the mandatory two-line-diff rule for `ai/`, `inspector/`, and `debugger/`; retain zero inter-feature import edges.
-- [x] Add exact 1:1 test mirrors for every new UI source module: `ai-builder-view.js`, `ai-explainer-view.js`, `browser-app.js`, `canvas-renderer.js`, `code-view.js`, `debugger-view.js`, `inspector-view.js`, `io-analyzer-view.js`, `panel-view.js`, and `placement-view.js`; add the missing `test/main.test.js` mirror as required by project convention.
-- [x] Add a real-browser or browser-DOM integration harness covering startup, palette placement, Inspector tabs/widgets, Debugger transport/timeline/breakpoints, code import/export/share, AI workflows, I/O analysis, and panel toggles.
+- [ ] Make every circuit/schedule replacement refresh the Debugger timeline and breakpoint presentation, not only explicit transport/toggle handlers. The current JSON-import reproduction leaves the slider `max=0` while the controller schedule length is `1`; apply the same guarantee to AI Builder application and undo/redo.
+- [ ] Define breakpoint column semantics consistently with debugger steps and circuit columns; the current list labels step-like values as columns, so the UI must say whether a breakpoint means before column $k$, after column $k$, or at state step $k$.
+- [ ] Define the I/O Analyzer state boundary explicitly in the UI (for example, final state or user-selected virtual column), analyze that boundary consistently before and after simulation, and keep the boundary/state identity in the cache key. The stale pre/post-simulation cache hit is fixed, but step-0 analysis currently reports no shared columns.
+- [ ] Restore canonical shot-histogram behavior under the State Inspector tab: call `app.sampleShots()` against the selected state boundary, render actual integer counts (including zero-count outcomes), label the chart truthfully, and define behavior for the 256-bar display cap.
+- [ ] Supply the AI Explainer with a state-selection boundary and visible summary/context, avoid direct mutation of the private trace where possible, and fix the no-cache fallback (`new Cache()` currently throws `Cache is not defined`).
+- [ ] Restore optional-leaf deletability to the mandatory two-line-diff rule for `ai/`, `inspector/`, and `debugger/`; retain zero inter-feature import edges and ensure `src/ui/browser-app.js` can tolerate an omitted leaf.
+- [ ] Add exact 1:1 test mirrors for every new source module, including `src/ai/registry.js`; retain the existing mirrors for the nine surviving modules from the original ten-module UI list, the four replacement Inspector view modules, and `src/main.js`.
+- [ ] Add a real-browser (not hand-built DOM-shim) integration suite covering startup, palette selection/pointer placement, canvas repaint, Inspector tabs/widgets, Debugger transport/timeline/breakpoints, code import/export/share, AI workflows, I/O analysis, URL routing, and panel toggles.
 - [ ] Enforce browser qubit limits and advisories in the UI layer: advisory for 15–20 qubits and hard refusal above 20, while retaining the Node CLI cap separately.
 - [ ] Synchronize AI Builder/I/O Analyzer qubit counts and editor row count after JSON import or AI Builder application; currently these auxiliary models can retain the initial two-qubit value.
 - [ ] Pass the shared `Cache` instance from `main.js` to `AIBuilderUI`/`IOAnalyzerUI` in `AppController.resetCircuit()` so auxiliary models share `app.cache` instead of constructing independent caches.
@@ -123,42 +113,40 @@
 
 ### Editor interaction and circuit-editing workflows
 
-- [ ] Complete true palette drag-and-drop/canvas cell selection through `Interaction`; current placement is select-then-pointer rather than native palette drag and still bypasses `Interaction.drop()`.
+- [ ] Complete true palette drag-and-drop/canvas cell selection through `Interaction`; current placement is select-then-pointer rather than native palette drag, although the pointer placement path now consumes `Interaction.drop()`.
 - [ ] Add support for selecting, moving, deleting, and replacing existing gates.
 - [ ] Add keyboard-accessible gate placement and editing, with a clear non-pointer alternative and visible focus/cell feedback.
 - [ ] Add user workflows for positive controls, anti-controls, control count, SWAP second target, Toffoli controls, and gate parameter angles; retain automatic row allocation only as an explicit fallback.
-- [ ] Add a gate-properties/parameter editor with validated radian/degree input and live preview.
+- [ ] Add a gate-properties/parameter editor with validated radian/degree input and live preview; palette placement currently uses each gate’s fixed default angle.
 - [ ] Add controls for adding/removing qubit rows and columns, with valid gate redistribution or explicit conflict behavior when row count changes.
-- [ ] Add clear/new-circuit, sample reset, and other state-reset controls where currently ambiguous.
-- [ ] Add conflict/error feedback for occupied rows, insufficient arity, invalid coordinates, and invalid imports rather than silently ignoring the action.
+- [ ] Add clear/new-circuit, sample reset, and other state-reset controls where currently ambiguous; Reset currently resets the debugger trace rather than the circuit.
+- [ ] Add conflict/error feedback for occupied rows, insufficient arity, invalid coordinates, and invalid imports rather than silently ignoring the action; placement conflicts now surface a reason, but malformed numeric coordinates and some import paths still need consistent visible handling.
 
 ### Inspector, debugger, and visualization completeness
 
-- [ ] Add phase display and a full state-vector text representation consistent with the committed state-display scope.
+- [ ] Add a full state-vector text representation consistent with the committed state-display scope.
 - [ ] Display single-qubit purity $\gamma_q$ and linear entropy $S_L(q)$ together in the Inspector, not only the vector length/entropy label.
-- [ ] Implement the canonical interactive statevector bar chart with amplitude and probability views, labels, and clear zero-state behavior.
+- [ ] Extend the state-vector chart to the canonical interactive amplitude/probability views, labels, and clear zero-state behavior; the current chart is probability-only and non-interactive.
 - [ ] Implement a density-matrix readout if it remains part of the documented browser scope, or correct the README claim that density-matrix displays are done.
 - [ ] Complete semantic gate rendering: distinct CZ/Toffoli/SWAP symbols, distinct anti-control markers, and non-overlapping target symbols/text rather than generic rectangles for every operation.
-- [ ] Implement canonical shot-histogram behavior under the State Inspector tab and make its state boundary explicit.
 - [ ] Implement a complete register overview for the Bloch tab, not only per-row dots, while retaining the per-qubit sphere subtabs.
-- [ ] Add a distinct row-level entanglement/purity glow tied to $S_L(q)$, and verify its color/alpha against the canonical entropy mapping.
+- [ ] Add a distinct row-level entanglement/purity glow tied to $S_L(q)$, and verify its color/alpha against the canonical entropy mapping. The renderer already emits a state-driven glow band, but it currently receives a linear-entropy array named `purity` and lacks browser visual verification.
 - [ ] Add previous-step navigation, play/pause, and run-to-previous-breakpoint controls to complete the debugger transport.
 - [ ] Add a current virtual-column marker on the circuit/timeline and breakpoint markers on the canvas.
 - [ ] Make Debugger breakpoint predicate configuration available in the UI, including enable/disable and clear-all controls.
-- [ ] Stop resetting `blochSubtab` to `'register'` on every Inspector re-render so a selected per-qubit subtab persists across state updates.
 
 ### Code, URL, AI, and persistence workflows
 
 - [ ] Add URL hash-change handling so navigation to a new `#circuit=` value reloads the circuit in an already-open page.
-- [ ] Replace prompt-based share/import UX with visible read-only share-URL/input fields, clipboard feedback, and non-blocking error/status messages.
-- [ ] Complete JSON import/export/copy behavior: support file-picker import, downloaded canonical JSON, copy confirmation, and validation feedback on textarea edits.
+- [ ] Replace prompt-based share/import UX with visible read-only share-URL/input fields, clipboard feedback, and non-blocking error/status messages; the current Share and Import buttons still use blocking `prompt()` calls.
+- [ ] Complete JSON import/export/copy behavior: support file-picker import, downloaded canonical JSON, copy confirmation, and validation feedback on textarea edits. Canonical export/download and Enter-to-import are present; file-picker import, copy confirmation, and edit-time validation are not.
 - [ ] Provide the canonical exported-code view alongside canonical JSON and the compressed share URL.
 - [ ] Add dedicated Code/AI subviews or tabs for Canonical JSON, Compressed Shareable URL, Exported Code, AI Explainer, AI Builder, and I/O Analyzer instead of stacking every tool in one narrow right panel.
 - [ ] Persist the last circuit/layout where appropriate (for example local storage), with explicit reset and privacy/error behavior.
-- [ ] Add AI Explainer state selection (final state versus a chosen virtual column) and show the summaries/context that were sent.
-- [ ] Add AI Builder failure/retry feedback, model/error details, and confirmation before replacing an edited circuit.
-- [ ] Add multi-row input/output selection to I/O Analyzer; the current UI exposes only one input and one output row although the contract supports selected rows.
-- [ ] Ensure AI Builder and I/O Analyzer cache invalidation includes circuit/state identity and expose cache-hit/miss state to the user.
+- [ ] Add AI Explainer state selection (final state versus a chosen virtual column) and show the summaries/context that were sent; per-column summaries are now generated, but the user cannot select the boundary or inspect what was sent.
+- [ ] Add AI Builder failure/retry feedback, model/error details, and confirmation before replacing an edited circuit; the current browser path applies a successful build immediately and replaces the editor without confirmation.
+- [ ] Add multi-row input/output selection to I/O Analyzer; the current UI exposes only one input and one output row although the contract supports selected rows, and row bounds must be validated against the selected circuit.
+- [ ] Ensure AI Builder cache invalidation includes the requested model/circuit context and expose cache-hit/miss state to the user; I/O Analyzer now keys on the trace step, but its explicit boundary still needs completion.
 - [ ] Include the AI Builder model selection in the cache key so switching models does not serve a stale cached circuit.
 - [ ] Fix AI gate-description fallback keys (`RX`/`RY`/`RZ`/`TOFFOLI` do not match registered IDs `Rx`/`Ry`/`Rz`/`Toffoli`) and correct `IOAnalyzer.enrichWithLLM()`, which currently calls `explain([])` and therefore returns “Empty circuit” instead of enriching the causal analysis.
 - [ ] Add reusable circuit blocks/subcircuits and algorithm insertion workflows to the palette/editor.
@@ -171,15 +159,14 @@
 - [ ] Add responsive breakpoints/mobile behavior; the current fixed 260px side panels and 150px bottom panel can clip on narrow or short viewports.
 - [ ] Add circuit zoom, pan, and scroll for large grids; the canvas currently renders only the visible panel area with no navigation model.
 - [ ] Add semantic accessibility: ARIA tab roles/state and keyboard tab navigation, canvas labels/fallbacks, labeled form controls, focus management, and an `aria-live` status region.
-- [ ] Add pointer/touch interaction feedback: drop target highlight, ghost/preview while dragging, conflict indication, and pointer capture so dragging outside the canvas behaves predictably.
-- [ ] Add visible selected-gate state and clear visual distinction between palette selection, hover, conflict, and placed gates.
+- [ ] Add pointer/touch interaction feedback: drop target highlight, ghost/preview while dragging, conflict indication, and pointer capture so dragging outside the canvas behaves predictably; placement currently has no drag ghost or target highlight.
+- [ ] Add visible selected-gate state and clear visual distinction between palette selection, hover, conflict, and placed gates; palette selection is currently internal state with no selected styling.
 
 ### Code quality, architecture, and documentation
 
-- [ ] Resolve remaining file-size rule violations in `src/sim/StepTrace.js` and `src/debugger/Debugger.js` (both exceed 400 lines).
-- [ ] Rename the new bare-function UI modules from kebab-case to the required camelCase filenames and align each primary export with its filename; define an explicit primary export for the browser bootstrap module.
+- [ ] Resolve remaining file-size rule violations in `src/sim/StepTrace.js` (432 lines), `src/debugger/Debugger.js` (483 lines), `test/ui/AppController.test.js` (519 lines), and `test/cross-validation/serializer-roundtrip.test.js` (410 lines).
+- [ ] Rename the new bare-function UI modules from kebab-case to the required camelCase filenames and align each primary export with its filename; define an explicit primary export for the browser bootstrap module, and replace or bring `src/ai/registry.js` into compliance with the primary-export/no-barrel rules.
 - [ ] Remove or centralize unused imports/state in UI modules (for example unused `collapse`, duplicated URL codec wiring, and module-level mutable explainer state where prohibited).
-- [ ] Fix the `// ai/ (6 lines)` comment in `src/main.js:99` to match the seven imports that follow.
-- [ ] Update README browser-UI status claims after browser acceptance, including Extended Gates, entanglement highlighting, JSON/URL persistence, and any feature still marked “Scaffold-only,” “Planned,” or “In progress.”
-- [ ] Keep `docs/Plans/UI.md` as the single live checklist; update DONE/QA/TODO here as each wave lands and leave `docs/Plans/UI Audit Historical.md` unchanged as history.
+- [ ] Update README browser-UI status claims after browser acceptance, including Extended Gates, entanglement highlighting, JSON/URL persistence, density-matrix display, and any feature still marked “Scaffold-only,” “Planned,” or “In progress.”
+- [ ] Keep `docs/Plans/UI.md` as the single live checklist; update DONE/QA/TODO here as each wave lands and leave `docs/Plans/UI Audit Historical.md` unchanged as history. This audit is complete through `4b867a4`; future waves must update the review-basis hash and re-verify every carried task.
 
