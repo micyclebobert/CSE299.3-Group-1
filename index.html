@@ -49,6 +49,10 @@
     .ai-output { margin-top: 4px; font-size: 11px; font-family: ui-monospace, monospace; word-break: break-all; max-height: 120px; overflow-y: auto; }
     .io-row { display: flex; gap: 6px; align-items: center; margin-bottom: 4px; }
     .io-output { margin-top: 4px; font-size: 11px; font-family: ui-monospace, monospace; word-break: break-all; max-height: 100px; overflow-y: auto; }
+    .breakpoint-list { margin-top: 6px; border-top: 1px solid var(--simqc-border); padding-top: 6px; font-size: 12px; }
+    .breakpoint-row { padding: 2px 6px; color: var(--simqc-text-muted); border-bottom: 1px solid var(--simqc-border); }
+    .breakpoint-row:last-child { border-bottom: none; }
+    .breakpoint-row.breakpoint-active { color: var(--simqc-accent); font-weight: 600; background: var(--simqc-panel-raised); }
   </style>
 </head>
 <body>
@@ -110,11 +114,11 @@
           <button id="btn-run-to-bp">Run to BP</button>
           <input id="bp-column" type="number" value="0" min="0" style="width:50px">
           <input id="timeline-scrub" type="range" min="0" max="0" style="width:150px">
+          <div id="breakpoint-list" class="breakpoint-list"></div>
         </div>
       </div>
       <div class="tab-strip" id="tab-strip">
-        <button class="tab active" data-tab="amplitudes">Amplitudes</button>
-        <button class="tab" data-tab="probabilities">Probabilities</button>
+        <button class="tab active" data-tab="state">State</button>
         <button class="tab" data-tab="bloch">Bloch Spheres</button>
       </div>
       <div id="inspector-content" class="muted">No state yet.</div>

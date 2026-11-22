@@ -65,10 +65,8 @@ function buildPrompt(instructions, summaries, numQubits) {
 
   lines.push('');
   lines.push('Sparse state summaries (top-k basis states by probability at key columns):');
-  let summaryIdx = 0;
   for (const instr of instructions) {
-    const summary = summaries[summaryIdx];
-    summaryIdx += 1;
+    const summary = summaries[instr.virtualColumn];
     if (!summary) continue;
     lines.push(`  After virtual column ${instr.virtualColumn}:`);
     for (const term of summary.topK.slice(0, 8)) {
@@ -184,8 +182,13 @@ export class AIExplainer {
 
     const cache = options.cache;
     const canonicalJson = options.canonicalJson;
+    const stateIdentity = options.stateIdentity;
+    const cacheKeyInput =
+      stateIdentity !== undefined && canonicalJson
+        ? `${canonicalJson}|${stateIdentity}`
+        : canonicalJson;
     const cacheKey =
-      cache && canonicalJson ? Cache.computeKey(canonicalJson) : null;
+      cache && canonicalJson ? Cache.computeKey(cacheKeyInput) : null;
 
     if (cacheKey !== null && cache.has(cacheKey)) {
       return cache.get(cacheKey);

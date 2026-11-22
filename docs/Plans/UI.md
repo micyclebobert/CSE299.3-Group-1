@@ -96,26 +96,26 @@
 
 ### P0 — Correctness and mandatory contract gaps
 
-- [ ] Correct pointer snapping to use renderer gate centers (column origin `labelGutter + colWidth/2 = 80`, row origin `rowHeight/2 = 20`) or an explicitly center-based formula; add tests for both gate centers and inter-column boundaries.
-- [ ] Validate placement coordinates before editing: reject negative columns, columns beyond the insertion point, negative rows, rows `>= numQubits`, and any target/control/`target2` row outside the circuit.
+- [x] Correct pointer snapping to use renderer gate centers (column origin `labelGutter + colWidth/2 = 80`, row origin `rowHeight/2 = 20`) or an explicitly center-based formula; add tests for both gate centers and inter-column boundaries.
+- [x] Validate placement coordinates before editing: reject negative columns, columns beyond the insertion point, negative rows, rows `>= numQubits`, and any target/control/`target2` row outside the circuit.
 - [ ] Validate `setShots()` input so non-numeric `shots` does not silently produce `NaN`; reject or clamp with visible status feedback.
-- [ ] Define and test empty-column/gap semantics so dropping into column `k` creates or preserves the intended columns instead of silently appending to the end.
-- [ ] Fix `_tryPlace` so targeting column `k` beyond the current length creates the intervening empty columns rather than silently appending only a single column.
-- [ ] Unify the browser placement path with `Interaction.drop()` (or extract one shared placement kernel) so the controller and pure interaction model cannot drift again.
-- [ ] Add a real browser/view-level placement test: select a palette gate, dispatch pointer events at a known cell, verify the resulting circuit, canvas repaint, Inspector update, code update, and undo history.
-- [ ] Keep `StepTrace`, `Debugger`, and `DebuggerUI` synchronized: route `simulate()` through Debugger callbacks (or explicitly refresh DebuggerUI), and ensure current/total step, timeline value, Inspector state, and canvas purity all agree after every transport action.
-- [ ] Update the timeline slider’s `max` and `value` whenever the circuit/schedule changes; reject or clamp invalid breakpoint-column input with visible status feedback.
-- [ ] Preserve and visualize breakpoint state: show active breakpoints in a list and/or on the canvas, expose active/enabled state, retain breakpoints across navigation, and define whether edits preserve or clear them.
-- [ ] Define the I/O Analyzer state boundary explicitly (for example, final state or user-selected virtual column), analyze that boundary, and include the boundary/state identity in the cache key so pre-simulation results cannot be served after simulation.
-- [ ] Supply the AI Explainer with one sparse top-$k$ summary per virtual column, not one summary for the whole prompt; ensure cache identity also reflects the analyzed state when summaries differ by step.
-- [ ] Replace CSS-variable strings in Canvas 2D style assignments with resolved theme values (`getComputedStyle()` or imported hex constants) for the Bloch sphere and histogram.
-- [ ] Correct Bloch-sphere projection so all three vector components are represented; the current drawn endpoint uses only x and z and can misrepresent `|i>`/`|-i>` states.
-- [ ] Bring the Inspector hierarchy in line with the canonical contract: two top-level tabs—State (amplitudes, probabilities, shot histogram) and Bloch Spheres (per-qubit subtabs plus register overview)—rather than three top-level tabs plus an external histogram.
-- [ ] Add phase display to the amplitude/state readout and render an amplitude/probability chart with sufficient interactive/visual detail for the canonical Inspector.
-- [ ] Render every basis outcome in the empirical histogram (including zero-count outcomes) instead of collapsing omitted states into a generic “rest” bar; apply high-DPI sizing to Inspector canvases.
-- [ ] Restore optional-leaf deletability to the mandatory two-line-diff rule for `ai/`, `inspector/`, and `debugger/`; retain zero inter-feature import edges.
-- [ ] Add exact 1:1 test mirrors for every new UI source module: `ai-builder-view.js`, `ai-explainer-view.js`, `browser-app.js`, `canvas-renderer.js`, `code-view.js`, `debugger-view.js`, `inspector-view.js`, `io-analyzer-view.js`, `panel-view.js`, and `placement-view.js`; add the missing `test/main.test.js` mirror as required by project convention.
-- [ ] Add a real-browser or browser-DOM integration harness covering startup, palette placement, Inspector tabs/widgets, Debugger transport/timeline/breakpoints, code import/export/share, AI workflows, I/O analysis, and panel toggles.
+- [x] Define and test empty-column/gap semantics so dropping into column `k` creates or preserves the intended columns instead of silently appending to the end.
+- [x] Fix `_tryPlace` so targeting column `k` beyond the current length creates the intervening empty columns rather than silently appending only a single column.
+- [x] Unify the browser placement path with `Interaction.drop()` (or extract one shared placement kernel) so the controller and pure interaction model cannot drift again.
+- [x] Add a real browser/view-level placement test: select a palette gate, dispatch pointer events at a known cell, verify the resulting circuit, canvas repaint, Inspector update, code update, and undo history.
+- [x] Keep `StepTrace`, `Debugger`, and `DebuggerUI` synchronized: route `simulate()` through Debugger callbacks (or explicitly refresh DebuggerUI), and ensure current/total step, timeline value, Inspector state, and canvas purity all agree after every transport action.
+- [x] Update the timeline slider’s `max` and `value` whenever the circuit/schedule changes; reject or clamp invalid breakpoint-column input with visible status feedback.
+- [x] Preserve and visualize breakpoint state: show active breakpoints in a list and/or on the canvas, expose active/enabled state, retain breakpoints across navigation, and define whether edits preserve or clear them.
+- [x] Define the I/O Analyzer state boundary explicitly (for example, final state or user-selected virtual column), analyze that boundary, and include the boundary/state identity in the cache key so pre-simulation results cannot be served after simulation.
+- [x] Supply the AI Explainer with one sparse top-$k$ summary per virtual column, not one summary for the whole prompt; ensure cache identity also reflects the analyzed state when summaries differ by step.
+- [x] Replace CSS-variable strings in Canvas 2D style assignments with resolved theme values (`getComputedStyle()` or imported hex constants) for the Bloch sphere and histogram.
+- [x] Correct Bloch-sphere projection so all three vector components are represented; the current drawn endpoint uses only x and z and can misrepresent `|i>`/`|-i>` states.
+- [x] Bring the Inspector hierarchy in line with the canonical contract: two top-level tabs—State (amplitudes, probabilities, shot histogram) and Bloch Spheres (per-qubit subtabs plus register overview)—rather than three top-level tabs plus an external histogram.
+- [x] Add phase display to the amplitude/state readout and render an amplitude/probability chart with sufficient interactive/visual detail for the canonical Inspector.
+- [x] Render every basis outcome in the empirical histogram (including zero-count outcomes) instead of collapsing omitted states into a generic “rest” bar; apply high-DPI sizing to Inspector canvases.
+- [x] Restore optional-leaf deletability to the mandatory two-line-diff rule for `ai/`, `inspector/`, and `debugger/`; retain zero inter-feature import edges.
+- [x] Add exact 1:1 test mirrors for every new UI source module: `ai-builder-view.js`, `ai-explainer-view.js`, `browser-app.js`, `canvas-renderer.js`, `code-view.js`, `debugger-view.js`, `inspector-view.js`, `io-analyzer-view.js`, `panel-view.js`, and `placement-view.js`; add the missing `test/main.test.js` mirror as required by project convention.
+- [x] Add a real-browser or browser-DOM integration harness covering startup, palette placement, Inspector tabs/widgets, Debugger transport/timeline/breakpoints, code import/export/share, AI workflows, I/O analysis, and panel toggles.
 - [ ] Enforce browser qubit limits and advisories in the UI layer: advisory for 15–20 qubits and hard refusal above 20, while retaining the Node CLI cap separately.
 - [ ] Synchronize AI Builder/I/O Analyzer qubit counts and editor row count after JSON import or AI Builder application; currently these auxiliary models can retain the initial two-qubit value.
 - [ ] Pass the shared `Cache` instance from `main.js` to `AIBuilderUI`/`IOAnalyzerUI` in `AppController.resetCircuit()` so auxiliary models share `app.cache` instead of constructing independent caches.

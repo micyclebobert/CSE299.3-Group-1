@@ -90,6 +90,9 @@ export class IOAnalyzerUI {
     }
     this.#callbacks = cb;
   }
+  onChange(cb) {
+    this.#callbacks.onChange = cb;
+  }
 
   // ---- read-only state ------------------------------------------------------
 
@@ -197,18 +200,26 @@ export class IOAnalyzerUI {
     this.#status = STATUS_IDLE;
     this.#error = null;
     this.#cacheHit = null;
+    const stateIdentity = stepTrace && typeof stepTrace.step === 'number'
+      ? `step=${stepTrace.step}`
+      : 'step=none';
     this.#cacheKey = Cache.sha256Hex(
-      `${JSON.stringify({ instructions, inputRows: this.#inputRows, outputRows: this.#outputRows, numQubits })}|${ANALYSIS_CACHE_VERSION}`
+      `${JSON.stringify({ instructions, inputRows: this.#inputRows, outputRows: this.#outputRows, numQubits })}|${stateIdentity}|${ANALYSIS_CACHE_VERSION}`
     );
     this.#callbacks.onAnalyzeStart(this.getStateSnapshot());
 
     if (this.#cache.has(this.#cacheKey)) {
       const cached = this.#cache.get(this.#cacheKey);
-      this.#applyCached(cached);
-      this.#cacheHit = true;
-      this.#callbacks.onCacheHit(this.#cacheKey, this.getStateSnapshot());
-      this.#notifyChange();
-      return this.getStateSnapshot();
+      if (cached.stateIdentity !== stateIdentity) {
+        // State boundary mismatch (e.g. pre-simulation cache served after
+        // simulation): recompute rather than serving stale analysis.
+      } else {
+        this.#applyCached(cached);
+        this.#cacheHit = true;
+        this.#callbacks.onCacheHit(this.#cacheKey, this.getStateSnapshot());
+        this.#notifyChange();
+        return this.getStateSnapshot();
+      }
     }
 
     this.#cacheHit = false;
@@ -241,7 +252,7 @@ export class IOAnalyzerUI {
     this.#analysis = analysis;
     this.#sparse = sparse;
     this.#error = null;
-    this.#cache.set(this.#cacheKey, { analysis, sparse });
+    this.#cache.set(this.#cacheKey, { analysis, sparse, stateIdentity });
     this.#callbacks.onAnalyzeOk(this.getStateSnapshot());
     this.#notifyChange();
     return this.getStateSnapshot();

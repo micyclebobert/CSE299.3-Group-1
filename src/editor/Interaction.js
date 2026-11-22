@@ -91,10 +91,11 @@ export class Interaction {
     return this;
   }
 
-  drop(circuit, { colPitch, rowPitch, colOffset = 0, rowOffset = 0 } = {}) {
+  drop(circuit, { colPitch, rowPitch, colOffset = 0, rowOffset = 0, column: overrideColumn, row: overrideRow } = {}) {
     const hadPicked = this._phase !== PHASE_IDLE;
     const gateEntry = this._gateEntry;
-    const { column, row } = this._cell;
+    const column = Number.isInteger(overrideColumn) ? overrideColumn : this._cell.column;
+    const row = Number.isInteger(overrideRow) ? overrideRow : this._cell.row;
 
     this.cancel();
 
@@ -104,7 +105,7 @@ export class Interaction {
     if (!(circuit instanceof Circuit)) {
       throw new TypeError('Interaction.drop expects a Circuit instance');
     }
-    if (!Number.isInteger(column) || column < 0 || column > circuit.columns.length) {
+    if (!Number.isInteger(column) || column < 0) {
       return { circuit: null, column, row, gateEntry, conflict: true, reason: 'invalid column' };
     }
     if (!Number.isInteger(row) || row < 0 || row >= circuit.numQubits) {
@@ -161,6 +162,9 @@ export class Interaction {
     });
 
     const nextColumns = [...circuit.columns];
+    while (nextColumns.length < column) {
+      nextColumns.push(new GateColumn({ gates: [] }));
+    }
     const nextColumn = new GateColumn({ gates: existing ? [...existing.gates, gate] : [gate] });
     if (column < nextColumns.length) {
       nextColumns[column] = nextColumn;

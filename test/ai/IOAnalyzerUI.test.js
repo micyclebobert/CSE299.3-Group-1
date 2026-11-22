@@ -206,6 +206,67 @@ describe('IOAnalyzerUI', () => {
     assert.equal(ui.cacheHit, null);
   });
 
+  it('cache key changes when stepTrace.step changes (same circuit)', () => {
+    const ui = new IOAnalyzerUI({ numQubits: 2 });
+    ui.setInputRows([0]);
+    ui.setOutputRows([0, 1]);
+    const preStep = { step: 0, getChangedSteps() { return []; } };
+    const postStep = { step: 3, getChangedSteps() { return []; } };
+    ui.analyze(bellInstructions, preStep);
+    const preKey = ui.cacheKey;
+    ui.analyze(bellInstructions, postStep);
+    const postKey = ui.cacheKey;
+    assert.notEqual(preKey, postKey);
+    assert.equal(ui.cacheKey, postKey);
+  });
+
+  it('same step produces same cache key (cache hit)', () => {
+    const hits = [];
+    const ui = new IOAnalyzerUI({ numQubits: 2, onCacheHit: (key) => hits.push(key) });
+    ui.setInputRows([0]);
+    ui.setOutputRows([0, 1]);
+    const stepTrace = { step: 2, getChangedSteps() { return [1, 2]; } };
+    ui.analyze(bellInstructions, stepTrace);
+    assert.equal(ui.cacheHit, false);
+    const firstKey = ui.cacheKey;
+    ui.analyze(bellInstructions, stepTrace);
+    assert.equal(ui.cacheHit, true);
+    assert.equal(hits.length, 1);
+    assert.equal(hits[0], firstKey);
+    assert.equal(ui.cacheKey, firstKey);
+  });
+
+  it('pre-simulation vs post-simulation produce different cache entries', () => {
+    const hits = [];
+    const ui = new IOAnalyzerUI({ numQubits: 2, onCacheHit: (key) => hits.push(key) });
+    ui.setInputRows([0]);
+    ui.setOutputRows([0, 1]);
+    const preSim = { step: 0, getChangedSteps() { return []; } };
+    const postSim = { step: 2, getChangedSteps() { return [1, 2]; } };
+    ui.analyze(bellInstructions, preSim);
+    assert.equal(ui.cacheHit, false);
+    const preKey = ui.cacheKey;
+    ui.analyze(bellInstructions, postSim);
+    assert.equal(ui.cacheHit, false);
+    const postKey = ui.cacheKey;
+    assert.notEqual(preKey, postKey);
+    // Serving pre-simulation cache after simulation must not happen: the
+    // pre-simulation entry is keyed under step=0, so re-querying with step=0
+    // hits it, while step=2 does not.
+    ui.analyze(bellInstructions, preSim);
+    assert.equal(ui.cacheHit, true);
+    assert.equal(hits.length, 1);
+    assert.equal(hits[0], preKey);
+  });
+
+  it('undefined stepTrace degrades to step=none', () => {
+    const ui = new IOAnalyzerUI({ numQubits: 2 });
+    ui.setInputRows([0]);
+    ui.setOutputRows([0, 1]);
+    ui.analyze(bellInstructions, undefined);
+    assert.equal(ui.cacheHit, false);
+    assert.match(ui.cacheKey, /^[0-9a-f]{64}$/);
+  });
   it('non-array instructions throw TypeError', () => {
     const ui = new IOAnalyzerUI();
     assert.throws(() => ui.analyze('not an array', {}), TypeError);

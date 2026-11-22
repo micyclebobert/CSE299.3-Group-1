@@ -2,7 +2,6 @@
 // Browser application state/controller layer.
 // Owns mutable app state and coordinates circuit edits, simulation,
 // Inspector readouts, Code&AI JSON serialization, and canvas rendering.
-
 import { Circuit } from '../circuit/Circuit.js';
 import { Gate, GateColumn } from '../circuit/GateColumn.js';
 import { Serializer } from '../circuit/Serializer.js';
@@ -13,7 +12,6 @@ import { StepTrace } from '../sim/StepTrace.js';
 import { StateVector } from '../core/StateVector.js';
 import { collapse, sampleHistogram } from '../measurement/measurement.js';
 import { gateControlCount, gateNeedsTarget2 } from '../editor/gatePalette.js';
-
 export class AppController {
   constructor({
     history, interaction, catalog, theme, Inspector,
@@ -31,14 +29,12 @@ export class AppController {
     this._AIBuilderUI = AIBuilderUI || null;
     this._IOAnalyzerUI = IOAnalyzerUI || null;
     this._cache = cache || null;
-
     this._canvasEl = canvasEl;
     this._ctx = canvasEl.getContext('2d');
     this._paletteEl = paletteEl;
     this._inspectorEl = inspectorEl;
     this._codeEl = codeEl;
     this._statusEl = statusEl;
-
     this._currentCircuit = null;
     this._stepTrace = null;
     this._debugger = null;
@@ -49,29 +45,23 @@ export class AppController {
     this._shots = 1024;
     this._pointer = { x: 0, y: 0 };
     this._selectedEntry = null;
-
     this._renderCb = null;
     this._inspectorCb = null;
     this._codeCb = null;
-
     this._renderPalette();
     this._bindPalette();
     this._bindCanvas();
     this._bindResize();
-
     this.resetCircuit(2);
   }
-
   onRender(cb) { this._renderCb = cb; }
   onInspector(cb) { this._inspectorCb = cb; }
   onCode(cb) { this._codeCb = cb; }
-
   notify() {
     if (this._renderCb) this._renderCb();
     if (this._inspectorCb) this._inspectorCb();
     if (this._codeCb) this._codeCb();
   }
-
   get currentCircuit() { return this._currentCircuit; }
   get numQubits() { return this._currentCircuit ? this._currentCircuit.numQubits : 0; }
   get shots() { return this._shots; }
@@ -84,7 +74,6 @@ export class AppController {
   get builderNumQubits() { return this._aiBuilder ? this._aiBuilder.numQubits : 0; }
   get debuggerUI() { return this._debuggerUI; }
   get debugger() { return this._debugger; }
-
   resetCircuit(numQubits = 2) {
     const circuit = new Circuit({ numQubits, columns: [] });
     this._setCircuit(circuit);
@@ -92,11 +81,11 @@ export class AppController {
     if (this._IOAnalyzerUI) this._ioAnalyzer = new this._IOAnalyzerUI({ numQubits });
     this._status('Ready. Click a palette gate to place it on the canvas.');
   }
-
   _setCircuit(circuit, { record = true } = {}) {
     if (!(circuit instanceof Circuit)) {
       throw new TypeError('AppController expects a Circuit instance');
     }
+    const previousBreakpoints = this.getBreakpoints();
     this._currentCircuit = circuit;
     const instructions = flattenCircuit(circuit);
     const schedule = scheduleColumns(instructions);
@@ -106,15 +95,14 @@ export class AppController {
       this._debugger = new this._Debugger(this._stepTrace);
       this._debuggerUI = new this._DebuggerUI(this._debugger);
       this._debuggerUI.onStepChange(() => this.notify());
+      previousBreakpoints.forEach((col) => this.addBreakpoint(col));
     }
     if (record) this._history.push(circuit);
     this.notify();
   }
-
   encodeURL() {
     return URLCodec.encode(this.serialize());
   }
-
   decodeURL(urlSafeBase64) {
     try {
       const json = URLCodec.decode(urlSafeBase64);
@@ -124,20 +112,41 @@ export class AppController {
       return { ok: false, error: err.message };
     }
   }
-
   placeGateAt(column, row, gateName) {
     const entry = this._catalog.find((e) => e.name === gateName);
     if (!entry) return { conflict: true, reason: 'unknown gate' };
+    const circuit = this._currentCircuit;
+    const n = circuit.numQubits;
+    if (column < 0 || column > circuit.columns.length || row < 0 || row >= n) {
+      this._status(`Invalid placement coordinates column=${column} row=${row}.`);
+      return { conflict: true, reason: 'coordinate out of range' };
+    }
     const result = this._tryPlace(entry, column, row);
     if (result.conflict) return { conflict: true, reason: result.reason };
     return { conflict: false };
   }
-
+  placeGateFromCell(cell, entry, { onPlace = () => {} } = {}) {
+    const circuit = this._currentCircuit;
+    const n = circuit.numQubits;
+    const { column, row } = cell;
+    if (!Number.isInteger(column) || column < 0 || !Number.isInteger(row) || row < 0 || row >= n) {
+      this._status(`Invalid placement coordinates column=${column} row=${row}.`);
+      return { conflict: true, reason: 'coordinate out of range' };
+    }
+    this._interaction.snap(cell.x, cell.y, { colPitch: 80, rowPitch: 48, colOffset: 80, rowOffset: 20 });
+    const result = this._interaction.drop(circuit, { colPitch: 80, rowPitch: 48, colOffset: 80, rowOffset: 20, column, row });
+    if (result.conflict) {
+      this._status(result.reason);
+      return { conflict: true, reason: result.reason };
+    }
+    this._setCircuit(result.circuit);
+    this.draw();
+    onPlace();
+    return { conflict: false };
+  }
   getPointer() { return this._pointer; }
   setPointer(x, y) { this._pointer = { x, y }; }
-
   getSelectedEntry() { return this._selectedEntry; }
-
   _renderPalette() {
     this._paletteEl.textContent = '';
     const byCat = new Map();
@@ -166,7 +175,6 @@ export class AppController {
       this._paletteEl.appendChild(row);
     }
   }
-
   _bindPalette() {
     this._paletteEl.addEventListener('click', (ev) => {
       const btn = ev.target.closest('button[data-name]');
@@ -177,24 +185,21 @@ export class AppController {
       this._selectedEntry = entry;
     });
   }
-
   _bindCanvas() {
     if (!this._canvasEl) return;
     const move = (ev) => this.setPointer(ev.offsetX ?? 0, ev.offsetY ?? 0);
     this._canvasEl.addEventListener('pointermove', move);
     this._canvasEl.addEventListener('mousemove', move);
   }
-
   _bindResize() {
     window.addEventListener('resize', () => this.draw());
     this.draw();
   }
-
   _placeGate(entry, column) {
     const circuit = this._currentCircuit;
     const n = circuit.numQubits;
     let placed = false;
-    for (let row = 0; row < n && !placed; row++) {
+    for (let row = 0; row < n && !placed; row += 1) {
       const result = this._tryPlace(entry, column, row);
       if (!result.conflict) placed = true;
     }
@@ -204,7 +209,6 @@ export class AppController {
     }
     this._status(`Placed ${entry.name} at column ${column}.`);
   }
-
   _tryPlace(entry, column, row) {
     const circuit = this._currentCircuit;
     const n = circuit.numQubits;
@@ -219,14 +223,12 @@ export class AppController {
     }
     if (usedRows.has(row)) return { circuit: null, conflict: true, reason: 'row occupied in column' };
     usedRows.add(row);
-
     const controlsNeeded = gateControlCount(entry.name);
     const needsTarget2 = gateNeedsTarget2(entry.name);
     const extraNeeded = controlsNeeded + (needsTarget2 ? 1 : 0);
     let freeCount = 0;
     for (let r = 0; r < n; r += 1) if (!usedRows.has(r)) freeCount += 1;
     if (freeCount < extraNeeded) return { circuit: null, conflict: true, reason: 'insufficient free rows for gate arity' };
-
     const controls = [];
     for (let r = 0; r < n && controls.length < controlsNeeded; r += 1) {
       if (usedRows.has(r)) continue;
@@ -245,27 +247,23 @@ export class AppController {
     let thetaRad = undefined;
     if (entry.parameterized && entry.defaultTheta !== undefined) thetaRad = entry.defaultTheta;
     const gate = new Gate({ name: entry.name, target: row, target2, thetaRad, controls });
-
     const nextColumns = [...circuit.columns];
     const nextColumn = existing
       ? new GateColumn({ gates: [...existing.gates, gate] })
       : new GateColumn({ gates: [gate] });
-    if (column < nextColumns.length) nextColumns[column] = nextColumn;
-    else nextColumns.push(nextColumn);
+    while (nextColumns.length < column) nextColumns.push(new GateColumn({ gates: [] }));
+    nextColumns[column] = nextColumn;
     const nextCircuit = new Circuit({ numQubits: circuit.numQubits, columns: nextColumns });
     this._setCircuit(nextCircuit);
     return { circuit: nextCircuit, conflict: false };
   }
-
   applyCircuit(circuit) {
     this._setCircuit(circuit);
     this._status('AI Builder circuit applied to editor.');
   }
-
   setBuilderNumQubits(numQubits) {
     if (this._aiBuilder) this._aiBuilder.setNumQubits(numQubits);
   }
-
   undo() {
     const prev = this._history.undo();
     if (prev) {
@@ -274,7 +272,6 @@ export class AppController {
     }
     return prev;
   }
-
   redo() {
     const next = this._history.redo();
     if (next) {
@@ -283,80 +280,91 @@ export class AppController {
     }
     return next;
   }
-
   simulate() {
     if (!this._stepTrace) return;
-    while (this._stepTrace.step < this._stepTrace.scheduleLength) this._stepTrace.next();
+    if (this._debugger) {
+      this._debugger.reset();
+      while (this._debugger.getCurrentStep() < this._debugger.getTotalSteps()) {
+        this._debugger.next();
+      }
+    } else {
+      while (this._stepTrace.step < this._stepTrace.scheduleLength) this._stepTrace.next();
+    }
     this.notify();
     this._status(`Simulated ${this._stepTrace.scheduleLength} virtual column(s).`);
   }
-
   reset() {
     if (!this._debugger) return;
     this._debugger.reset();
     this.notify();
     this._status('Reset to |0...\u232a at step 0.');
   }
-
   step() {
     this.stepDebugger();
   }
-
   stepDebugger() {
     if (!this._debugger) return;
     this._debugger.next();
     this.notify();
   }
-
   runToBreakpoint() {
     if (!this._debugger) return;
     this._debugger.runToBreakpoint();
     this.notify();
   }
-
   seekDebugger(col) {
     if (!this._debugger) return;
     this._debugger.seek(col);
     this.notify();
   }
-
-  addBreakpoint(col) { return this._debugger?.addColumnBreakpoint(col); }
-  removeBreakpoint(col) { return this._debugger?.removeColumnBreakpoint(col); }
-  toggleBreakpoint(col) { return this._debugger?.toggleColumnBreakpoint(col); }
+  _validBreakpointCol(col) {
+    return Number.isInteger(col) && col >= 0 && col <= this.getTimelineMax();
+  }
+  addBreakpoint(col) {
+    if (!this._debugger || !this._validBreakpointCol(col)) { this._status(`Invalid breakpoint column ${col}.`); return false; }
+    try { return this._debugger.addColumnBreakpoint(col); } catch (err) { this._status(`Invalid breakpoint column ${col}: ${err.message}`); return false; }
+  }
+  removeBreakpoint(col) {
+    if (!this._debugger || !this._validBreakpointCol(col)) { this._status(`Invalid breakpoint column ${col}.`); return false; }
+    return this._debugger.removeColumnBreakpoint(col);
+  }
+  toggleBreakpoint(col) {
+    if (!this._debugger || !this._validBreakpointCol(col)) { this._status(`Invalid breakpoint column ${col}.`); return false; }
+    try { return this._debugger.toggleColumnBreakpoint(col); } catch (err) { this._status(`Invalid breakpoint column ${col}: ${err.message}`); return false; }
+  }
+  clearAllBreakpoints() { if (this._debugger) this._debugger.clearAllBreakpoints(); }
   getBreakpoints() { return this._debugger?.getColumnBreakpoints() ?? []; }
+  getBreakpointsWithStatus() {
+    const step = this.getDebuggerStep();
+    return this.getBreakpoints().map((col) => ({ column: col, active: col === step }));
+  }
   hasBreakpoint(col) { return this._debugger?.hasColumnBreakpoint(col) ?? false; }
   getDebuggerStep() { return this._debuggerUI?.getCurrentStep() ?? 0; }
   getDebuggerTotal() { return this._debuggerUI?.getTotalSteps() ?? 0; }
   isDebuggerAtStart() { return this._debuggerUI?.isAtStart() ?? true; }
   isDebuggerAtEnd() { return this._debuggerUI?.isAtEnd() ?? true; }
-
   seek(col) {
     if (!this._stepTrace) return;
     this._stepTrace.seek(col);
     this.notify();
   }
-
   getCurrentStep() { return this._stepTrace ? this._stepTrace.step : 0; }
   getTotalSteps() { return this._stepTrace ? this._stepTrace.scheduleLength : 0; }
+  getTimelineMax() { return this.getTotalSteps(); }
   isAtStart() { return this._stepTrace ? this._stepTrace.step === 0 : true; }
   isAtEnd() { return this._stepTrace ? this._stepTrace.step >= this._stepTrace.scheduleLength : true; }
-
   probabilities() { return this._inspector ? this._inspector.probabilities() : new Float64Array(0); }
   amplitudes() { return this._inspector ? this._inspector.amplitudes() : []; }
   ketLabels() { return this._inspector ? this._inspector.ketLabels() : []; }
   linearEntropy(q) { return this._inspector ? this._inspector.purity.linearEntropy(q) : 0; }
-
   purityGammas() {
     const n = this.numQubits;
     const out = new Float64Array(n);
-    for (let q = 0; q < n; q++) out[q] = this.linearEntropy(q);
+    for (let q = 0; q < n; q += 1) out[q] = this.linearEntropy(q);
     return out;
   }
-
   bloch(q) { return this._inspector ? this._inspector.bloch.vector(q) : { x: 0, y: 0, z: 0 }; }
-
   setShots(shots) { this._shots = Math.max(1, Math.floor(shots)); }
-
   sampleShots() {
     if (!this._stepTrace) return null;
     const trace = this._stepTrace;
@@ -370,9 +378,7 @@ export class AppController {
     }
     return sampleHistogram(state, this._shots);
   }
-
   serialize() { return this._currentCircuit ? Serializer.toJson(this._currentCircuit) : ''; }
-
   deserialize(json) {
     try {
       const circuit = Serializer.fromJson(json);
@@ -384,11 +390,10 @@ export class AppController {
       return { ok: false, error: err.message };
     }
   }
-
   draw() {
     if (!this._currentCircuit || !this._renderCb) return;
     this._renderCb({ circuit: this._currentCircuit, purity: this.purityGammas() });
   }
-
   _status(msg) { if (this._statusEl) this._statusEl.textContent = msg; }
+
 }

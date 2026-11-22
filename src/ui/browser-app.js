@@ -1,8 +1,11 @@
 import { theme, themeCssVariables } from '../main.js';
 import { AppController } from './AppController.js';
-import { panelModel, history, interaction, catalog, Inspector, Debugger, DebuggerUI, AIBuilderUI, IOAnalyzerUI, AIExplainer, cache } from '../main.js';
+import { panelModel, history, interaction, catalog, Inspector, Debugger, DebuggerUI, AIBuilderUI, IOAnalyzerUI, AIExplainer, SparseSummary, cache } from '../main.js';
 import { initCanvasRenderer } from './canvas-renderer.js';
-import { initInspectorView } from './inspector-view.js';
+import { initInspectorTabsView } from './inspector-tabs-view.js';
+import { initInspectorStateView } from './inspector-state-view.js';
+import { initInspectorBlochView } from './inspector-bloch-view.js';
+import { initInspectorHistogramView } from './inspector-histogram-view.js';
 import { initDebuggerView } from './debugger-view.js';
 import { initCodeView } from './code-view.js';
 import { initAIExplainerView } from './ai-explainer-view.js';
@@ -31,12 +34,21 @@ const app = new AppController({
 });
 
 const inspectorEl = document.getElementById('inspector-content');
-const { renderInspector } = initInspectorView(app, inspectorEl);
-const { updateDebugStep } = initDebuggerView(app, document.getElementById('step-current'), document.getElementById('step-total'));
+const tabStripEl = document.getElementById('tab-strip');
+const shotHistEl = document.getElementById('shot-hist');
+const stateView = initInspectorStateView(app, inspectorEl);
+const blochView = initInspectorBlochView(app, inspectorEl);
+const histogramView = initInspectorHistogramView(app, shotHistEl);
+const tabsView = initInspectorTabsView(app, tabStripEl, inspectorEl, {
+  renderState: stateView.renderState,
+  renderBloch: blochView.renderBloch,
+});
+const { renderInspector } = tabsView;
+const { updateDebugStep } = initDebuggerView(app, document.getElementById('step-current'), document.getElementById('step-total'), document.getElementById('breakpoint-list'));
 
 initCanvasRenderer(app, canvas, ctx);
 initCodeView(app, document.getElementById('code-view'));
-initAIExplainerView(app, document.getElementById('ai-output'), AIExplainer, cache);
+initAIExplainerView(app, document.getElementById('ai-output'), AIExplainer, SparseSummary, cache);
 const codeEl = document.getElementById('code-view');
 initAIBuilderView(app, document.getElementById('ai-prompt'), document.getElementById('builder-output'), codeEl, renderInspector);
 initIOAnalyzerView(app, document.getElementById('io-input-row'), document.getElementById('io-output-row'), document.getElementById('io-output'));
@@ -47,6 +59,13 @@ document.getElementById('btn-simulate').addEventListener('click', () => { app.si
 document.getElementById('btn-reset').addEventListener('click', () => { app.reset(); app.draw(); renderInspector(); updateDebugStep(); });
 document.getElementById('btn-undo').addEventListener('click', () => { app.undo(); app.draw(); renderInspector(); updateDebugStep(); });
 document.getElementById('btn-redo').addEventListener('click', () => { app.redo(); app.draw(); renderInspector(); updateDebugStep(); });
+
+const shotsInput = document.getElementById('shots-input');
+shotsInput.addEventListener('change', (ev) => { app.setShots(ev.target.value); });
+document.getElementById('btn-sample').addEventListener('click', () => {
+  app.simulate();
+  histogramView.renderShots();
+});
 
 app.draw(); renderInspector(); codeEl.value = app.serialize(); updateDebugStep();
 

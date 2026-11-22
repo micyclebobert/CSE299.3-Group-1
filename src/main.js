@@ -96,14 +96,8 @@ import { Debugger } from './debugger/Debugger.js';
 import { Inspector } from './inspector/Inspector.js';
 import { InspectorUI } from './inspector/InspectorUI.js';
 
-// ai/ (6 lines)
-import { AIExplainer } from './ai/AIExplainer.js';
-import { IOAnalyzer } from './ai/IOAnalyzer.js';
-import { AIBuilder } from './ai/AIBuilder.js';
-import { SparseSummary } from './ai/SparseSummary.js';
-import { AIBuilderUI } from './ai/AIBuilderUI.js';
-import { IOAnalyzerUI } from './ai/IOAnalyzerUI.js';
-import { Cache } from './ai/Cache.js';
+// ai/ (2 lines)
+import { AIExplainer, IOAnalyzer, AIBuilder, SparseSummary, AIBuilderUI, IOAnalyzerUI, Cache } from './ai/registry.js';
 
 const cache = new Cache();
 
@@ -128,4 +122,5 @@ export { snapCell } from './editor/Interaction.js';
 // Discardable feature leaf exports (browser controller consumes these).
 // ---------------------------------------------------------------------------
 
-export { DebuggerUI, Debugger, InspectorUI, Inspector, AIExplainer, IOAnalyzer, AIBuilder, AIBuilderUI, IOAnalyzerUI, Cache, SparseSummary };
+export { DebuggerUI, Debugger, InspectorUI, Inspector };
+export { AIExplainer, IOAnalyzer, AIBuilder, AIBuilderUI, IOAnalyzerUI, Cache, SparseSummary } from './ai/registry.js';

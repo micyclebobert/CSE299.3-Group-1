@@ -160,15 +160,48 @@ test('drop adds a gate to an existing column on a disjoint row', () => {
   deepStrictEqual(names.sort(), ['H', 'X']);
 });
 
-test('drop rejects out-of-range column index', () => {
+test('drop rejects negative column index', () => {
   const circuit = emptyCircuit(2);
   const it = new Interaction();
   it.pick(H_ENTRY, 0, 0);
-  it.snap(100, 0, { colPitch: 20, rowPitch: 10 }); // column 5 > length 0
-  const result = it.drop(circuit, { colPitch: 20, rowPitch: 10 });
+  it.snap(0, 0, { colPitch: 20, rowPitch: 10 });
+  const result = it.drop(circuit, { colPitch: 20, rowPitch: 10, column: -1, row: 0 });
   strictEqual(result.conflict, true);
   strictEqual(result.circuit, null);
   strictEqual(result.reason, 'invalid column');
+});
+
+test('drop at column 2 on empty 2-qubit circuit creates 3 columns with gaps at 0 and 1', () => {
+  const circuit = emptyCircuit(2);
+  const it = new Interaction();
+  it.pick(H_ENTRY, 0, 0);
+  it.snap(0, 0, { colPitch: 20, rowPitch: 10 });
+  const result = it.drop(circuit, { colPitch: 20, rowPitch: 10, column: 2, row: 0 });
+  strictEqual(result.conflict, false);
+  strictEqual(result.circuit.columns.length, 3, 'three columns created');
+  strictEqual(result.circuit.columns[0].gates.length, 0, 'column 0 is an empty gap');
+  strictEqual(result.circuit.columns[1].gates.length, 0, 'column 1 is an empty gap');
+  strictEqual(result.circuit.columns[2].gates.length, 1, 'column 2 holds the gate');
+  strictEqual(result.circuit.columns[2].gates[0].name, 'H');
+  strictEqual(result.circuit.columns[2].gates[0].target, 0);
+  strictEqual(result.column, 2);
+  strictEqual(result.row, 0);
+});
+
+test('drop at column 5 on empty circuit creates 6 columns with gaps', () => {
+  const circuit = emptyCircuit(2);
+  const it = new Interaction();
+  it.pick(H_ENTRY, 0, 0);
+  it.snap(0, 0, { colPitch: 20, rowPitch: 10 });
+  const result = it.drop(circuit, { colPitch: 20, rowPitch: 10, column: 5, row: 0 });
+  strictEqual(result.conflict, false);
+  strictEqual(result.circuit.columns.length, 6, 'six columns created');
+  for (let i = 0; i < 5; i += 1) {
+    strictEqual(result.circuit.columns[i].gates.length, 0, `column ${i} is an empty gap`);
+  }
+  strictEqual(result.circuit.columns[5].gates.length, 1, 'column 5 holds the gate');
+  strictEqual(result.circuit.columns[5].gates[0].name, 'H');
+  strictEqual(result.circuit.columns[5].gates[0].target, 0);
 });
 
 test('drop rejects out-of-range row index', () => {

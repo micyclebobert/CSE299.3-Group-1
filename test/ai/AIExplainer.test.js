@@ -31,6 +31,17 @@ function okResponse(content) {
   });
 }
 
+function mockFetchCapturingPrompt() {
+  let capturedPrompt = '';
+  const fakeFetch = async (input, init) => {
+    capturedPrompt = JSON.parse(init.body).messages[0].content;
+    return okResponse('ok');
+  };
+  fakeFetch.prompt = () => capturedPrompt;
+  globalThis.fetch = fakeFetch;
+  return fakeFetch;
+}
+
 const instructions = [
   { gateId: 'H', target: 0, controls: [], column: 0, virtualColumn: 0 },
   {
@@ -132,5 +143,51 @@ describe('AIExplainer', () => {
     );
     const key = Cache.computeKey('some-json');
     assert.equal(cache.get(key), 'new explanation');
+  });
+
+  it('indexes summaries by virtual column, not instruction order', async () => {
+    const fetchMock = mockFetchCapturingPrompt();
+    const vcInstructions = [
+      { gateId: 'H', target: 0, controls: [], column: 0, virtualColumn: 0 },
+      { gateId: 'H', target: 1, controls: [], column: 1, virtualColumn: 2 },
+    ];
+    // summaries[0] -> |00>, summaries[2] -> |01>, summaries[1] unused (gap at vc=1)
+    const vcSummaries = [
+      { topK: [{ label: '|00>', probability: 1, phase: 0 }], marginals: [] },
+      { topK: [{ label: '|10>', probability: 1, phase: 0 }], marginals: [] },
+      { topK: [{ label: '|01>', probability: 1, phase: 0 }], marginals: [] },
+    ];
+    const explainer = new AIExplainer();
+    await explainer.explain(vcInstructions, vcSummaries, 2);
+    const prompt = fetchMock.prompt();
+    assert.ok(prompt.includes('|00>'), 'vc=0 uses summaries[0] (|00>)');
+    assert.ok(prompt.includes('|01>'), 'vc=2 uses summaries[2] (|01>)');
+    assert.ok(!prompt.includes('|10>'), 'summaries[1] must not be used for vc=2');
+    const col0Header = prompt.indexOf('After virtual column 0:');
+    const col2Header = prompt.indexOf('After virtual column 2:');
+    assert.ok(col0Header !== -1 && col2Header !== -1, 'both column headers present');
+    assert.ok(col0Header < col2Header, 'column 0 summary precedes column 2 summary');
+  });
+
+  it('builds one summary per virtual column with sparse array', async () => {
+    const fetchMock = mockFetchCapturingPrompt();
+    const instrs = [
+      { gateId: 'H', target: 0, controls: [], column: 0, virtualColumn: 0 },
+      { gateId: 'H', target: 1, controls: [], column: 1, virtualColumn: 0 },
+      { gateId: 'H', target: 0, controls: [], column: 2, virtualColumn: 2 },
+    ];
+    const summaries = [
+      { topK: [{ label: '|00>', probability: 1, phase: 0 }], marginals: [] },
+      undefined, // no summary at virtual column 1
+      { topK: [{ label: '|01>', probability: 1, phase: 0 }], marginals: [] },
+    ];
+    const explainer = new AIExplainer();
+    await explainer.explain(instrs, summaries, 2);
+    const prompt = fetchMock.prompt();
+    const col0Header = prompt.indexOf('After virtual column 0:');
+    const col2Header = prompt.indexOf('After virtual column 2:');
+    assert.ok(col0Header !== -1 && col2Header !== -1, 'both column headers present');
+    assert.ok(prompt.indexOf('|00>') > col0Header, '|00> after column 0 header');
+    assert.ok(prompt.indexOf('|01>') > col2Header, '|01> after column 2 header');
   });
 });

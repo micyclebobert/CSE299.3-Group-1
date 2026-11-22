@@ -62,6 +62,9 @@ export class AIBuilderUI {
     }
     this.#callbacks = cb;
   }
+  onChange(cb) {
+    this.#callbacks.onChange = cb;
+  }
 
   // ---- read-only state ------------------------------------------------------
 
