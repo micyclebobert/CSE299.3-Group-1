@@ -72,7 +72,7 @@ The goal is a simulator that is **numerically correct**, **efficient**, and **in
 
 *Update this table as work lands: ⬜ Planned → 🟨 In progress → ✅ Done.*
 *Engine = `src/core`, `src/circuit`, `src/sim`, `src/gates` (headless, runs in bare Node). Browser UI = `src/ui`, `src/canvas`, `index.html` (browser acceptance). "n/a" means the component is headless-only.*
-*Engine status reflects the headless simulation core, implemented and tested via `node --test`. Browser UI status reflects browser acceptance; an engine capability marked Done without a matching Browser UI Done means the capability exists in the core but has no browser interface yet.*
+*Engine status reflects the headless simulation core, implemented and tested via `npm test`. Browser UI status reflects browser acceptance; an engine capability marked Done without a matching Browser UI Done means the capability exists in the core but has no browser interface yet.*
 
 ---
 
@@ -333,7 +333,7 @@ cd <REPO>
 
 # 2. Run the test suite (bare Node.js, no packages)
 npm test
-# or: node --test
+# or: npm test
 
 # 3. Serve locally and open the simulator
 #    ES modules are blocked from file:// by browser CORS, so a local
@@ -355,7 +355,7 @@ python3 -m http.server 8000
 
 The differential tests in `test/cross-validation/` compare SimQC against Qiskit
 and NumPy. They are skipped automatically when Python/Qiskit is unavailable, so
-`node --test` passes without them. To enable:
+`npm test` passes without them. To enable:
 
 ```bash
 # 1. Create the venv (or run scripts/ensure_venv.sh)
@@ -364,7 +364,7 @@ python3 -m venv .simqc-venv
 .simqc-venv/bin/pip install numpy qiskit
 
 # 2. Run the cross-validation suite
-node --test test/cross-validation/
+npm test test/cross-validation/
 ```
 
 The venv location and Python executable are resolved by `test/cross-validation/python_env.js`

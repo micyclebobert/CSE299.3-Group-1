@@ -32,7 +32,7 @@ These sit at the repository root and keep transient experiments out of source co
 
 ## Group 2: The Headless Engine (`src/` — Pure JS, Zero DOM)
 
-This group is the mathematical and structural heart of SimQC. Every folder here must run unmodified in bare Node.js (`node --test`).
+This group is the mathematical and structural heart of SimQC. Every folder here must run unmodified in bare Node.js (`npm test`).
 
 * **`core/` (Foundational Math & State Memory):**
   * Holds pure mathematical primitives and the split-buffer state vector container.
@@ -82,7 +82,7 @@ Each folder in this group is a self-contained island wired only by `main.js`. De
 ## Group 6: Verification & Tooling (`test/` & `cli/`)
 
 * **`test/` (Mirrored Test Tree):**
-  * Mirrors the `src/` groups (`test/core/`, `test/circuit/`, `test/sim/`, etc.) so `node --test` can run targeted or full-suite verification cleanly.
+  * Mirrors the `src/` groups (`test/core/`, `test/circuit/`, `test/sim/`, etc.) so `npm test` can run targeted or full-suite verification cleanly.
 * **`cli/` or `scripts/` (Headless Runner, Differential Pipe & CI Checks):**
   * Houses the bare Node `stdin -> stdout` runner, the Python Qiskit/Cirq differential verification script (consuming `requirements.txt`), and lightweight CI guardrails (line-count cap, import-zone checker).
 

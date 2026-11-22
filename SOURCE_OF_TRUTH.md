@@ -16,7 +16,7 @@
 
 ### 1.2 Bare Node.js CLI Execution Contract
 SimQC executes in modern browsers and in **bare Node.js** with **strictly zero external dependencies** and **no build step** (no `npm` packages, no Vite/Webpack bundlers, no external JS libraries). Bare Node.js fulfills three mandatory architectural roles:
-1. **Headless Unit & Property Testing:** All core, circuit, and simulator test suites run directly via native `node --test` and native ES Modules (`import ... from './file.js'`).
+1. **Headless Unit & Property Testing:** All core, circuit, and simulator test suites run directly via native `npm test` and native ES Modules (`import ... from './file.js'`).
 2. **Real-Time Cross-Library Differential Pipe (`stdin` $\to$ `stdout`):** The CLI runner accepts canonical v1 JSON circuit definitions on `stdin` and outputs the resulting state vector to `stdout`, enabling external Python verification scripts to test SimQC against Qiskit and Cirq in real time without browser orchestration.
 3. **Zero-DOM Architectural Guardrail:** Core math, circuit, and simulation modules must never touch `window`, `document`, or DOM globals. Executing in bare Node enforces this boundary automatically—any DOM reference crashes immediately.
 
@@ -53,7 +53,7 @@ Derived from a line-by-line audit of `Strilanc/Quirk` (`src/`, $106$ files / $27
 | **Named Exports & Explicit `.js`** | $106 / 106$ files in Quirk | Named exports only; explicit `.js` file extensions for native browser and bare Node ESM compatibility. |
 | **Minimal Observable Primitive** | `base/Obs.js:354` | Dependency-free $\sim 80$-line reactive observable for UI state notifications. |
 | **Explicit DI to Break Cycles** | `Serializer.js:48` (`initSerializer`) | Applied to `GateRegistry` injection so `circuit/` never imports `gates/`. |
-| **1:1 Test-to-Source Mirroring** | `test/{base,math,circuit,gates}/` | Every source module has a 1:1 mirrored `*.test.js` executed via `node --test`. |
+| **1:1 Test-to-Source Mirroring** | `test/{base,math,circuit,gates}/` | Every source module has a 1:1 mirrored `*.test.js` executed via `npm test`. |
 
 ### 2.2 Explicit Divergences from Quirk
 | Quirk Convention | SimQC Normative Convention | Technical Rationale |
@@ -232,7 +232,7 @@ Every function mutating state-vector buffers must obey these six rules:
 6. **Single Complex Multiplication Identity:** $(a + bi)(c + di) = (ac - bd) + (ad + bc)i$ is implemented once in `Complex.js` and once in the unrolled kernel pattern above.
 
 ### 4.5 Normalization & Numerical Invariants
-* **Test-Only Per-Gate Normalization Check (`node --test` / Debug Mode):**
+* **Test-Only Per-Gate Normalization Check (`npm test` / Debug Mode):**
   * After every gate application in automated tests, check $\lVert\lvert\psi\rangle\rVert^2$ against $1.0$:
     * Drift $\le 10^{-9}$: do nothing (normal IEEE-754 rounding).
     * Drift $> 10^{-9}$: renormalize **and log a warning** (signals an upstream arithmetic bug; silent renormalization is forbidden).
@@ -435,7 +435,7 @@ SimQC adapts pretrained open-weights instruct models via a three-layer local sta
    * Purely real, purely imaginary, fully complex, and the 3 asymmetric pairs (complex–real, complex–imaginary, imaginary–real, with randomly swapped components).
    * Compare the pairwise bare-function kernel against the naive $\mathcal{O}(4^n)$ `Matrix` Kronecker product path for $n \le 6$ (tolerance $10^{-12}$), and pipe canonical v1 JSON over bare Node `stdin`/`stdout` against Qiskit and Cirq reference runners.
 
-### 9.2 Mandatory `node --test` Validation Hooks
+### 9.2 Mandatory `npm test` Validation Hooks
 | Convention | Mandatory Automated Test |
 |---|---|
 | **Little-endian bidirectional ordering** | On $n = 3$: `H` on qubit row $1$ pairs $(i, i+2)$; **`CNOT(0→1)` swaps `{1, 3}` and `{5, 7}`**; **`CNOT(1→0)` swaps `{2, 3}` and `{6, 7}`**. |
@@ -452,7 +452,7 @@ SimQC adapts pretrained open-weights instruct models via a three-layer local sta
 |---|---|---|---|
 | **1a** | `core/Complex.js`, `core/Matrix.js` (with Kronecker product), `CONVENTIONS.md`, Ollama Phase 0–1 | Layer 1 analytical tests pass; Ollama throughput baselined | **Completed (Sprint 1)** |
 | **1b** | `core/StateVector.js`, `sim/kernel.js` (bare functions), core `gates/` ($X,Y,Z,H,\text{CNOT},R_x,R_y,R_z$), $n \le 6$ differential harness | Bell state $H(0) \to \text{CNOT}(0 \to 1)$ yields $(1/\sqrt{2}, 0, 0, 1/\sqrt{2})$ and matches naive `Matrix` path within $10^{-12}$ | **Active (Sprint 2)** |
-| **2** | `circuit/` — `Gate`, `GateColumn`, `Circuit`, `SubCircuit`, `Ascii.js` | `node --test` with `Ascii.js`: structural transforms preserve column and row counts | Planned |
+| **2** | `circuit/` — `Gate`, `GateColumn`, `Circuit`, `SubCircuit`, `Ascii.js` | `npm test` with `Ascii.js`: structural transforms preserve column and row counts | Planned |
 | **3** | `circuit/Serializer.js` (v1 JSON + URL codec) + `GateRegistry` injection | Property test: `fromJson(toJson(c)).isEqualTo(c)` across generated circuits | Planned |
 | **4** | `circuit/Flatten.js` (`flattenCircuit` + `scheduleColumns`) + `sim/Evaluator.js` + Tiered `StepTrace` + `measurement/` | Flatten 3-qubit circuit, evaluate & step in both Dense and Ephemeral modes, verify Born probabilities sum to $1 \pm 10^{-12}$ | Planned |
 | **5** | `sim/Analytic.js` + `algorithms/` ($\ge 3$ of DJ, Grover, QFT, Shor) | Curated closed-form expectations and theoretical algorithm distributions verified | Planned |
@@ -469,7 +469,7 @@ SimQC adapts pretrained open-weights instruct models via a three-layer local sta
 
 | # | Domain | Normative Decision |
 |---|---|---|
-| 1 | **Runtime** | Browser + bare Node.js CLI (`node --test`, `stdin`/`stdout` JSON pipe, zero `npm` packages, zero DOM in core) |
+| 1 | **Runtime** | Browser + bare Node.js CLI (`npm test`, `stdin`/`stdout` JSON pipe, zero `npm` packages, zero DOM in core) |
 | 2 | **Endianness** | Little-endian internal (`qubit row q = bit q`); big-endian ket labels $\lvert q_{n-1}\dots q_0\rangle$ in UI only |
 | 3 | **Circuit Metaphor** | Horizontal **qubit rows** ($0 \dots n-1$), no wires; VS Code dark-mode dockable panels |
 | 4 | **State Memory** | Two parallel private `Float64Array`s (`re[]`, `im[]`), never interleaved |

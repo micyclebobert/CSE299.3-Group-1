@@ -171,7 +171,7 @@
 ## 10. Normalization, Purity & Bloch Vector Conventions
 
 * **Test-Only Per-Gate Normalization Check:**
-  * In `node --test` / debug mode, check `normSquared()` after every gate:
+  * In `npm test` / debug mode, check `normSquared()` after every gate:
     * $\lvert\text{normSq} - 1.0\rvert \le 10^{-9}$: pass silently.
     * $\lvert\text{normSq} - 1.0\rvert > 10^{-9}$: log a warning to `stderr` **and** renormalize in place (silent renormalization is forbidden).
     * Any `NaN` or `Infinity`: throw `Error` immediately.
@@ -221,7 +221,11 @@
 
 ## 12. Testing & Verification Conventions
 
-* **Test Runner & Layout:** Mirror every source file 1:1 with a `*.test.js` file executed via `node --test`.
+* **Test Runner & Layout:** Mirror every source file 1:1 with a `*.test.js` file executed via `npm test`.
+
+* **Output Truncation:** Test output can be long. It is recommended to truncate when reviewing, e.g. `npm test 2>&1 | tail -15`, or use `npm test shortout` which prints only error identifiers (`not ok` lines, non-zero `# fail` counts, `# tests` summary) plus the last 15 lines. Either way, every run still writes its full output to `.tmp/test_logs/<id>.log` and prints `Use 'npm run retrive <id>' to revisit the full output of this test`.
+
+* **Errors in Truncated Output:** If an agent reviews truncated output and finds error(s), it MUST use `npm run retrive <id>` with the printed id to obtain the full output rather than rerunning the tests. Rerunning discards the original log context; `retrive` preserves it.
 * **Numerical Tolerances:**
   * $n \le 8$: $\le 10^{-12}$ absolute error per amplitude component.
   * $n > 8$: $\le 10^{-9}$ absolute error per amplitude component.
