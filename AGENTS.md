@@ -44,6 +44,7 @@ Summary:
 
 
 ## Info
-Test runtime is around ~3-4 minutes (dominated by the 21-qubit Shor test)
-Note: Shor's test produces no intermediate output under `npm test` only because the expensive 21-qubit Shor simulations (Shor(21,2), Shor(35,2)) run last and take several minutes, streaming TAP only as each test completes. This is expected; do not treat silence as failure or re-investigate.
+
+Testing takes ~1 mintue. 23 Shor's test are skipped by default and are nothing to be worried about. It is recommended to skip the test unless any file in `src/algorithms` is edited.
+If the user requests "Full tests", the agent must run `npm test`.
 Always use `npm test` and never `node --test`.

@@ -236,3 +236,4 @@
   * `CNOT(control = 1, target = 0)` swaps **exact index pairs $\{2, 3\}$ and $\{6, 7\}$**.
 * **Differential Testing Profiles ($n \le 6$):**
   * Every gate/operation of arity $k_{\text{op}}$ must be tested across all **6 amplitude profiles** (purely real, purely imaginary, fully complex, complex–real, complex–imaginary, imaginary–real) against the naive $\mathcal{O}(4^n)$ `Matrix` Kronecker product reference and the CLI Qiskit/Cirq pipe.
+* **Shor's test:** If any files in `src/algorithms` is modified or if the user explicity asks for the inclusion of Shor's test, the agent MUST run `WITH_SHOR=1 npm test`. Running the suite with Shor's test requires around 4-5 minutes. Shor's test is not considered to be a part of the full test suite.

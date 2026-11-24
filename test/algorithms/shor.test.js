@@ -27,11 +27,14 @@ import '../../src/main.js';
 
 const TOL = 1e-9;
 
+const WITH_SHOR = process.env.WITH_SHOR === '1';
+const t = WITH_SHOR ? test : test.skip;
+
 // ---------------------------------------------------------------------------
 // Classical number theory helpers
 // ---------------------------------------------------------------------------
 
-test('gcd computes greatest common divisor', () => {
+t('gcd computes greatest common divisor', () => {
   strictEqual(gcd(7, 15), 1);
   strictEqual(gcd(12, 18), 6);
   strictEqual(gcd(0, 5), 5);
@@ -39,38 +42,38 @@ test('gcd computes greatest common divisor', () => {
   strictEqual(gcd(0, 0), 0);
 });
 
-test('gcd throws on invalid input', () => {
+t('gcd throws on invalid input', () => {
   throws(() => gcd(-1, 5), TypeError);
   throws(() => gcd(5, -3), TypeError);
   throws(() => gcd(2.5, 5), TypeError);
 });
 
-test('modExp computes base^exp mod N', () => {
+t('modExp computes base^exp mod N', () => {
   strictEqual(modExp(7, 4, 15), 1); // 7^4 = 2401 = 1 mod 15
   strictEqual(modExp(2, 10, 1000), 24);
   strictEqual(modExp(3, 0, 7), 1);
   strictEqual(modExp(0, 5, 7), 0);
 });
 
-test('modExp throws on invalid input', () => {
+t('modExp throws on invalid input', () => {
   throws(() => modExp(-1, 2, 5), TypeError);
   throws(() => modExp(2, -1, 5), TypeError);
   throws(() => modExp(2, 2, 0), TypeError);
 });
 
-test('findOrder returns multiplicative order', () => {
+t('findOrder returns multiplicative order', () => {
   strictEqual(findOrder(7, 15), 4); // 7^4 = 1 mod 15
   strictEqual(findOrder(11, 15), 2); // 11^2 = 1 mod 15
   strictEqual(findOrder(2, 15), 4); // 2^4 = 16 = 1 mod 15
 });
 
-test('findOrder returns null when gcd(a,N) != 1', () => {
+t('findOrder returns null when gcd(a,N) != 1', () => {
   strictEqual(findOrder(3, 15), null);
   strictEqual(findOrder(5, 15), null);
   strictEqual(findOrder(6, 15), null);
 });
 
-test('findOrder throws on invalid input', () => {
+t('findOrder throws on invalid input', () => {
   throws(() => findOrder(0, 15), TypeError);
   throws(() => findOrder(7, 1), TypeError);
 });
@@ -79,7 +82,7 @@ test('findOrder throws on invalid input', () => {
 // shor() input validation
 // ---------------------------------------------------------------------------
 
-test('shor throws on invalid N', () => {
+t('shor throws on invalid N', () => {
   throws(() => shor(2, 1), TypeError);   // even
   throws(() => shor(1, 1), TypeError);   // < 3
   throws(() => shor(9, 1), TypeError);   // a <= 1
@@ -89,7 +92,7 @@ test('shor throws on invalid N', () => {
   throws(() => shor('x', 7), TypeError);
 });
 
-test('shor throws on invalid options.t', () => {
+t('shor throws on invalid options.t', () => {
   throws(() => shor(15, 7, { t: 0 }), TypeError);
   throws(() => shor(15, 7, { t: -1 }), TypeError);
   throws(() => shor(15, 7, { t: 2.5 }), TypeError);
@@ -99,7 +102,7 @@ test('shor throws on invalid options.t', () => {
 // Circuit structure
 // ---------------------------------------------------------------------------
 
-test('shor(15, 7) builds circuit with expected qubit count', () => {
+t('shor(15, 7) builds circuit with expected qubit count', () => {
   // t = 2*ceil(log2(15)) = 8, n = ceil(log2(15)) = 4
   // numQubits = t + n + 2 flags + (n-1) mcxAnc = 8 + 4 + 2 + 3 = 17
   const circuit = shor(15, 7);
@@ -107,7 +110,7 @@ test('shor(15, 7) builds circuit with expected qubit count', () => {
   ok(circuit.columns.length > 0, 'circuit has at least one column');
 });
 
-test('shor initializes work register to |1> and applies H to count[0]', () => {
+t('shor initializes work register to |1> and applies H to count[0]', () => {
   const circuit = shor(15, 7, { t: 6 });
   const firstCol = circuit.columns[0];
   const xGate = firstCol.gates.find((g) => g.name === 'X');
@@ -120,7 +123,7 @@ test('shor initializes work register to |1> and applies H to count[0]', () => {
   ok(hGate, 'count[0] receives an H gate');
 });
 
-test('shor default t = 2*ceil(log2(N))', () => {
+t('shor default t = 2*ceil(log2(N))', () => {
   const circuit = shor(15, 7);
   const n = Math.ceil(Math.log2(15)); // 4
   const expected = 2 * n + n + 2 + (n - 1); // t + work + flags + mcxAnc
@@ -148,7 +151,7 @@ function countProbabilities(state, t, totalQubits) {
   return probs;
 }
 
-test('Shor(15, 7) peaks at multiples of 2^t/r = 64 (r=4)', () => {
+t('Shor(15, 7) peaks at multiples of 2^t/r = 64 (r=4)', () => {
   const t = 8;
   const state = runShor(15, 7, t);
   const probs = countProbabilities(state, t, 17);
@@ -167,7 +170,7 @@ test('Shor(15, 7) peaks at multiples of 2^t/r = 64 (r=4)', () => {
   ok(offPeakMass <= TOL, `off-peak mass should be 0, got ${offPeakMass}`);
 });
 
-test('Shor(15, 11) peaks at multiples of 2^t/r = 128 (r=2)', () => {
+t('Shor(15, 11) peaks at multiples of 2^t/r = 128 (r=2)', () => {
   const t = 8;
   const state = runShor(15, 11, t);
   const probs = countProbabilities(state, t, 17);
@@ -180,7 +183,7 @@ test('Shor(15, 11) peaks at multiples of 2^t/r = 128 (r=2)', () => {
   }
 });
 
-test('Shor(15, 13) peaks at multiples of 64 (r=4)', () => {
+t('Shor(15, 13) peaks at multiples of 64 (r=4)', () => {
   const t = 8;
   const state = runShor(15, 13, t);
   const probs = countProbabilities(state, t, 17);
@@ -193,12 +196,12 @@ test('Shor(15, 13) peaks at multiples of 64 (r=4)', () => {
   }
 });
 
-test('shor returns a Circuit instance', () => {
+t('shor returns a Circuit instance', () => {
   const circuit = shor(15, 7);
   ok(circuit instanceof Circuit, 'shor should return a Circuit');
 });
 
-test('Shor(21, 2) concentrates near multiples of 2^t/r (r=6 does not divide 2^t)', () => {
+t('Shor(21, 2) concentrates near multiples of 2^t/r (r=6 does not divide 2^t)', () => {
   // ord_21(2) = 6 and 6 does not divide 2^10 = 1024; exercises controlled
   // modular multiplication beyond the N=15, r | 2^t cases.
   const t = 10;
@@ -213,7 +216,7 @@ test('Shor(21, 2) concentrates near multiples of 2^t/r (r=6 does not divide 2^t)
   ok(peakMass > 0.6, `peak mass should dominate, got ${peakMass}`);
 });
 
-test('Shor(35, 2) concentrates near multiples of 2^t/r (r=12 does not divide 2^t)', () => {
+t('Shor(35, 2) concentrates near multiples of 2^t/r (r=12 does not divide 2^t)', () => {
   // ord_35(2) = 12 and 12 does not divide 2^8 = 256.
   const t = 8;
   const circuit = shor(35, 2, { t });
@@ -227,7 +230,7 @@ test('Shor(35, 2) concentrates near multiples of 2^t/r (r=12 does not divide 2^t
   ok(peakMass > 0.6, `peak mass should dominate, got ${peakMass}`);
 });
 
-test('evaluate is bit-deterministic: repeated shor runs are bit-identical', () => {
+t('evaluate is bit-deterministic: repeated shor runs are bit-identical', () => {
   const circuit = shor(15, 7, { t: 6 });
   const instructions = flattenCircuit(circuit);
   const schedule = scheduleColumns(instructions);

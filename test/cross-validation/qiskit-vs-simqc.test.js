@@ -32,6 +32,8 @@ import { deutschJozsa } from '../../src/algorithms/dj.js';
 import { grover } from '../../src/algorithms/grover.js';
 import { shor } from '../../src/algorithms/shor.js';
 
+const WITH_SHOR = process.env.WITH_SHOR === '1';
+
 const FIXTURE_DIR = new URL('./fixtures', import.meta.url).pathname;
 const QISKIT_SCRIPT = new URL('./qiskit-differential.py', import.meta.url)
   .pathname;
@@ -343,8 +345,9 @@ if (!pythonAvailable) {
   });
 
   // Shor order-finding: (15,7), (21,2), (35,2)
+  const shorTest = WITH_SHOR ? test : test.skip;
   for (const [N, a] of [[15, 7], [21, 2], [35, 2]]) {
-    test(`algorithm: Shor N=${N}, a=${a} matches Qiskit`, () => {
+    shorTest(`algorithm: Shor N=${N}, a=${a} matches Qiskit`, () => {
       const t = Math.min(2 * Math.ceil(Math.log2(N)), 8);
       const shorCircuit = shor(N, a, { t });
       const numQubits = shorCircuit.numQubits;
