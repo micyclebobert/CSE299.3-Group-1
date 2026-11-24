@@ -61,11 +61,11 @@ The goal is a simulator that is **numerically correct**, **efficient**, and **in
 | At least three of Deutsch–Jozsa, Grover, QFT | Committed | ✅ Done | n/a (headless core) |
 | Custom drag-and-drop circuit editor | Committed | ✅ Done | ✅ Done (implemented) |
 | State displays (probabilities, amplitudes, state-vector text, histogram) | Committed | ✅ Done | ✅ Done (implemented) |
-| Extended gates (I, S, T, CZ, SWAP, Toffoli) | Extension | ✅ Done | ⬜ Scaffold-only |
-| JSON and URL persistence | Planned | 🟨 In progress | 🟨 In progress |
+| Extended gates (I, S, T, CZ, SWAP, Toffoli) | Extension | ✅ Done | ✅ Done (implemented) |
+| JSON and URL persistence | Planned | 🟨 In progress | ✅ Done (implemented) |
 | Breakpoints and stepwise inspection | Proposed feature | ✅ Done | ✅ Done (implemented) |
-| Reusable circuit blocks | Proposed feature | ⬜ Planned | ⬜ Planned |
-| Entanglement highlighting | Proposed feature | ⬜ Planned | ⬜ Planned |
+| Reusable circuit blocks | Proposed feature | ⬜ Planned | ✅ Done (implemented) |
+| Entanglement highlighting | Proposed feature | ⬜ Planned | ✅ Done (implemented) |
 | Explainer AI and builder AI | Proposed feature | ✅ Done | ✅ Done (implemented) |
 | I/O Analyzer with causal chain analysis | Proposed feature | ✅ Done | ✅ Done (implemented) |
 | Bloch sphere and density-matrix displays | Deferred | ⬜ Later | ✅ Done (implemented) |

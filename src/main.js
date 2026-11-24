@@ -125,10 +125,7 @@ const AIBuilderUI = await registry.get('AIBuilderUI');
 const IOAnalyzerUI = await registry.get('IOAnalyzerUI');
 const Cache = await registry.get('Cache');
 
-let cache = null;
-if (Cache) {
-  cache = new Cache();
-}
+const cache = Cache ? new Cache() : null;
 
 // ---------------------------------------------------------------------------
 // Application entry point (browser / CLI wiring would go here).

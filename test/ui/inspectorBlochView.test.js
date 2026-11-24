@@ -1,18 +1,18 @@
 import { test } from 'node:test';
 import { strictEqual, ok } from 'assert';
 import { readFileSync } from 'node:fs';
-import { initInspectorBlochView, projectBloch } from '../../src/ui/inspector-bloch-view.js';
+import { initInspectorBlochView, projectBloch } from '../../src/ui/inspectorBlochView.js';
 
 function source() {
-  return readFileSync(new URL('../../src/ui/inspector-bloch-view.js', import.meta.url), 'utf8');
+  return readFileSync(new URL('../../src/ui/inspectorBlochView.js', import.meta.url), 'utf8');
 }
 
 test('inspector-bloch-view imports theme from ./theme.js', () => {
   ok(/^import \{ theme \} from '\.\/theme\.js';$/m.test(source()), 'inspector-bloch-view.js must import theme from ./theme.js');
 });
 
-test('inspector-bloch-view imports entropyColor and fmt from ./inspector-state-view.js', () => {
-  ok(/^import \{ entropyColor, fmt \} from '\.\/inspector-state-view\.js';$/m.test(source()), 'must import entropyColor and fmt from ./inspector-state-view.js');
+test('inspector-bloch-view imports entropyColor and fmt from ./inspectorStateView.js', () => {
+  ok(/^import \{ entropyColor, fmt \} from '\.\/inspectorStateView.js';$/m.test(source()), 'must import entropyColor and fmt from ./inspectorStateView.js');
 });
 
 test('inspector-bloch-view exports initInspectorBlochView and projectBloch', () => {

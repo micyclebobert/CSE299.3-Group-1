@@ -121,10 +121,6 @@ export class DebuggerUI {
     });
   }
 
-  // ---------------------------------------------------------------------------
-  // Transport controls
-  // ---------------------------------------------------------------------------
-
   reset() {
     return this.#dbg.reset();
   }
@@ -148,10 +144,6 @@ export class DebuggerUI {
   runToPreviousBreakpoint() {
     return this.#dbg.runToPreviousBreakpoint();
   }
-
-  // ---------------------------------------------------------------------------
-  // State accessors (UI state model)
-  // ---------------------------------------------------------------------------
 
   getCurrentStep() {
     return this.#state.currentStep;
@@ -196,10 +188,6 @@ export class DebuggerUI {
   getDebugger() {
     return this.#dbg;
   }
-
-  // ---------------------------------------------------------------------------
-  // Breakpoint UI model (convenience methods delegating to Debugger)
-  // ---------------------------------------------------------------------------
 
   addColumnBreakpoint(virtualColumn) {
     const added = this.#dbg.addColumnBreakpoint(virtualColumn);
@@ -263,6 +251,21 @@ export class DebuggerUI {
     return nowEnabled;
   }
 
+  setPredicateBreakpointEnabled(id, enabled) {
+    const bm = this.#dbg.getBreakpointManager();
+    const ok = bm.setPredicateBreakpointEnabled(id, enabled);
+    syncState(this.#state, this.#dbg);
+    if (this.#callbacks.onBreakpointsChanged) {
+      this.#callbacks.onBreakpointsChanged();
+    }
+    return ok;
+  }
+
+  isPredicateBreakpointEnabled(id) {
+    const bm = this.#dbg.getBreakpointManager();
+    return bm.isPredicateBreakpointEnabled(id);
+  }
+
   hasPredicateBreakpoint(id) {
     return this.#dbg.hasPredicateBreakpoint(id);
   }
@@ -290,10 +293,6 @@ export class DebuggerUI {
       this.#callbacks.onBreakpointsChanged();
     }
   }
-
-  // ---------------------------------------------------------------------------
-  // Callbacks (DOM layer subscribes to re-render)
-  // ---------------------------------------------------------------------------
 
   onStepChange(callback) {
     if (typeof callback !== 'function') {
@@ -337,7 +336,3 @@ export class DebuggerUI {
     this.#callbacks.onBreakpointsChanged = callback;
   }
 }
-
-/**
- * Primary export matching the base filename (DebuggerUI.js -> DebuggerUI).
- */

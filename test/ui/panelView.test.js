@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import { strictEqual, ok } from 'assert';
-import { initPanelView } from '../../src/ui/panel-view.js';
+import { initPanelView } from '../../src/ui/panelView.js';
 import { PANEL_LEFT } from '../../src/ui/panels.js';
 
 function makeElement() {

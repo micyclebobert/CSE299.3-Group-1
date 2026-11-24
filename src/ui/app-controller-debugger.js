@@ -26,9 +26,42 @@ export const debuggerMethods = {
     this._debugger.next();
     this.notify();
   },
+  stepPrevious() {
+    if (!this._debugger) return;
+    const prev = this._debugger.getCurrentStep() - 1;
+    if (prev < 0) return;
+    this._debugger.seek(prev);
+    this.notify();
+  },
+  playPause() {
+    if (!this._debugger) return;
+    if (this._playInterval) {
+      clearInterval(this._playInterval);
+      this._playInterval = null;
+      this._status('Paused.');
+      return;
+    }
+    const stepMs = 400;
+    this._playInterval = setInterval(() => {
+      if (this._debugger.isAtEnd()) {
+        clearInterval(this._playInterval);
+        this._playInterval = null;
+        this._status('Playback reached end.');
+        return;
+      }
+      this._debugger.next();
+      this.notify();
+    }, stepMs);
+    this._status('Playing...');
+  },
   runToBreakpoint() {
     if (!this._debugger) return;
     this._debugger.runToBreakpoint();
+    this.notify();
+  },
+  runToPreviousBreakpoint() {
+    if (!this._debugger) return;
+    this._debugger.runToPreviousBreakpoint();
     this.notify();
   },
   seekDebugger(col) {
@@ -62,6 +95,7 @@ export const debuggerMethods = {
   getDebuggerTotal() { return this._debuggerUI?.getTotalSteps() ?? 0; },
   isDebuggerAtStart() { return this._debuggerUI?.isAtStart() ?? true; },
   isDebuggerAtEnd() { return this._debuggerUI?.isAtEnd() ?? true; },
+  getCurrentVirtualColumn() { return this._stepTrace ? this._stepTrace.step : 0; },
   seek(col) {
     if (!this._stepTrace) return;
     this._stepTrace.seek(col);

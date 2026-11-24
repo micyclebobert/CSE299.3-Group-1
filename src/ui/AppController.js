@@ -1,7 +1,8 @@
-import { encode as _urlEncode, decode as _urlDecode } from '../circuit/URLCodec.js';
-const URLCodec = { encode: _urlEncode, decode: _urlDecode };
+import { encode as urlEncode, decode as urlDecode } from '../circuit/URLCodec.js';
 import { evaluate as evaluateLimits, MAX_EPHEMERAL_QUBITS } from '../sim/limits.js';
-import { circuitMethods } from './app-controller-circuit.js';
+import { placementMethods } from './app-controller-placement.js';
+import { gatesMethods } from './app-controller-gates.js';
+import { structureMethods } from './app-controller-structure.js';
 import { debuggerMethods } from './app-controller-debugger.js';
 import { inspectorMethods } from './app-controller-inspector.js';
 import { shotsMethods } from './app-controller-shots.js';
@@ -38,6 +39,8 @@ export class AppController {
     this._shots = 1024;
     this._pointer = { x: 0, y: 0 };
     this._selectedEntry = null;
+    this._selectedColumn = null;
+    this._selectedRow = null;
     this._renderCb = null;
     this._inspectorCb = null;
     this._codeCb = null;
@@ -159,6 +162,9 @@ export class AppController {
   getPointer() { return this._pointer; }
   setPointer(x, y) { this._pointer = { x, y }; }
   getSelectedEntry() { return this._selectedEntry; }
+  setSelectedEntry(entry) { this._selectedEntry = entry; }
+  clearSelection() { this._selectedEntry = null; this._selectedColumn = null; this._selectedRow = null; }
+  getSelectedCell() { return this._selectedColumn === null || this._selectedRow === null ? null : { column: this._selectedColumn, row: this._selectedRow }; }
   _renderPalette() {
     this._paletteEl.textContent = '';
     const byCat = new Map();
@@ -208,11 +214,11 @@ export class AppController {
     this.draw();
   }
   encodeURL() {
-    return URLCodec.encode(this.serialize());
+    return urlEncode(this.serialize());
   }
   decodeURL(urlSafeBase64) {
     try {
-      const json = URLCodec.decode(urlSafeBase64);
+      const json = urlDecode(urlSafeBase64);
       const result = this.deserialize(json);
       return { ok: result.ok, error: result.error };
     } catch (err) {
@@ -222,4 +228,4 @@ export class AppController {
   _status(msg) { if (this._statusEl) this._statusEl.textContent = msg; }
   setStatus(msg) { this._status(msg); }
 }
-Object.assign(AppController.prototype, circuitMethods, debuggerMethods, inspectorMethods, shotsMethods);
+Object.assign(AppController.prototype, placementMethods, gatesMethods, structureMethods, debuggerMethods, inspectorMethods, shotsMethods);

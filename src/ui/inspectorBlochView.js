@@ -1,5 +1,5 @@
 import { theme } from './theme.js';
-import { entropyColor, fmt } from './inspector-state-view.js';
+import { entropyColor, fmt } from './inspectorStateView.js';
 
 export function initInspectorBlochView(app, inspectorEl) {
   let blochSubtab = 'register';

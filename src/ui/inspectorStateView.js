@@ -12,6 +12,27 @@ export function fmt(v) {
   return v.toFixed(3);
 }
 
+export function stateVectorText(app) {
+  const amps = app.amplitudes();
+  const labels = app.ketLabels();
+  const n = app.numQubits;
+  const lines = [];
+  let allZero = true;
+  for (let i = 0; i < amps.length; i += 1) {
+    if (amps[i].prob > 1e-12) { allZero = false; break; }
+  }
+  if (allZero && amps.length > 0) {
+    lines.push(`|${'0'.repeat(n)}>: 1.000000 + 0.000000i  (prob 1.000000, phase 0.000000 rad)`);
+    return lines.join('\n');
+  }
+  for (let i = 0; i < amps.length; i += 1) {
+    const a = amps[i];
+    const phase = Math.atan2(a.im, a.re);
+    lines.push(`${labels[i]}: ${a.re.toFixed(6)} ${a.im >= 0 ? '+' : '-'} ${Math.abs(a.im).toFixed(6)}i  (prob ${a.prob.toFixed(6)}, phase ${phase.toFixed(6)} rad)`);
+  }
+  return lines.join('\n');
+}
+
 export function initInspectorStateView(app, container) {
   function renderAmplitudes() {
     const amps = app.amplitudes();
@@ -40,6 +61,11 @@ export function initInspectorStateView(app, container) {
     }
     html += '</tbody></table>';
     return html;
+  }
+
+  function renderStateVectorText() {
+    const text = stateVectorText(app);
+    return `<pre style="font-size:11px;line-height:1.4;margin:8px 0;white-space:pre-wrap;word-break:break-all;color:${theme.textMuted};background:${theme.panel};padding:6px;border:1px solid ${theme.border};border-radius:4px;overflow:auto;">${text.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>`;
   }
 
   function renderStateVectorChart() {
@@ -118,7 +144,7 @@ export function initInspectorStateView(app, container) {
   }
 
   function renderState() {
-    container.innerHTML = renderAmplitudes() + renderProbabilities() + renderStateVectorChart();
+    container.innerHTML = renderAmplitudes() + renderProbabilities() + renderStateVectorText() + renderStateVectorChart();
     drawStateVectorChart();
   }
 

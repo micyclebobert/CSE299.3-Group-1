@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import { strictEqual, ok } from 'assert';
-import { initDebuggerView } from '../../src/ui/debugger-view.js';
+import { initDebuggerView } from '../../src/ui/debuggerView.js';
 
 function makeElement() {
   const listeners = new Map();

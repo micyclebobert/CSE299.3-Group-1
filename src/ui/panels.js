@@ -78,10 +78,12 @@ export class PanelRegion {
 export class PanelModel {
   #viewport;
   #regions;
+  #docks;
 
   constructor({ viewport } = {}) {
     this.#viewport = viewport ? { ...viewport } : { x: 0, y: 0, w: 0, h: 0 };
     this.#regions = new Map();
+    this.#docks = new Map();
   }
 
   get viewport() {
@@ -171,5 +173,107 @@ export class PanelModel {
     };
 
     return { left, main, right, bottom };
+  }
+
+  applyLayoutRects(viewport) {
+    const v = viewport ? { ...viewport } : { ...this.#viewport };
+    const leftRegion = this.#regions.get(PANEL_LEFT);
+    const rightRegion = this.#regions.get(PANEL_RIGHT);
+    const bottomRegion = this.#regions.get(PANEL_BOTTOM);
+
+    const leftW = (leftRegion && leftRegion.visible) ? Math.max(0, leftRegion.rect.w) : 0;
+    const rightW = (rightRegion && rightRegion.visible) ? Math.max(0, rightRegion.rect.w) : 0;
+    const bottomH = (bottomRegion && bottomRegion.visible) ? Math.max(0, bottomRegion.rect.h) : 0;
+
+    const mainW = Math.max(0, v.w - leftW - rightW);
+    const mainH = Math.max(0, v.h - bottomH);
+
+    return {
+      leftW,
+      rightW,
+      bottomH,
+      mainW,
+      mainH,
+      gridTemplateColumns: `${leftW}px ${mainW > 0 ? '1fr' : '0px'} ${rightW}px`,
+      gridTemplateRows: `${mainH > 0 ? '1fr' : '0px'} ${bottomH}px`,
+      rects: this.getLayoutRects(),
+    };
+  }
+
+  resizeRegion(id, { width, height } = {}) {
+    const region = this.#regions.get(id);
+    if (!region) {
+      throw new Error(`PanelModel.resizeRegion: unknown region id: ${id}`);
+    }
+    const rect = { ...region.rect };
+    if (Number.isFinite(width)) {
+      rect.w = Math.max(0, width);
+    }
+    if (Number.isFinite(height)) {
+      rect.h = Math.max(0, height);
+    }
+    region.setRect(rect);
+    return { ...rect };
+  }
+
+  dockRegion(id, position) {
+    const region = this.#regions.get(id);
+    if (!region) {
+      throw new Error(`PanelModel.dockRegion: unknown region id: ${id}`);
+    }
+    this.#docks.set(id, position);
+    const dockCount = [...this.#docks.values()].length;
+    region.setZIndex(dockCount);
+    return { id, position, zIndex: region.zIndex };
+  }
+
+  getDock(id) {
+    return this.#docks.get(id);
+  }
+
+  saveLayout() {
+    return {
+      viewport: { ...this.#viewport },
+      regions: [...this.#regions.entries()].map(([id, region]) => ({
+        id,
+        rect: region.rect,
+        visible: region.visible,
+        zIndex: region.zIndex,
+      })),
+      docks: [...this.#docks.entries()],
+    };
+  }
+
+  loadLayout(state) {
+    if (!state || typeof state !== 'object') {
+      throw new Error('PanelModel.loadLayout: expected a layout state object');
+    }
+    if (state.viewport) {
+      this.#viewport = { ...state.viewport };
+    }
+    for (const entry of state.regions ?? []) {
+      const region = this.#regions.get(entry.id);
+      if (region) {
+        if (entry.rect) {
+          region.setRect({ ...entry.rect });
+        }
+        if (entry.visible !== undefined) {
+          if (Boolean(entry.visible)) {
+            region.show();
+          } else {
+            region.hide();
+          }
+        }
+        if (Number.isFinite(entry.zIndex)) {
+          region.setZIndex(entry.zIndex);
+        }
+      }
+    }
+    if (state.docks) {
+      for (const [id, position] of state.docks) {
+        this.#docks.set(id, position);
+      }
+    }
+    return this.saveLayout();
   }
 }

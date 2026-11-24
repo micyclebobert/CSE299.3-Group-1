@@ -1,49 +1,8 @@
 import { Circuit } from '../circuit/Circuit.js';
 import { Gate, GateColumn } from '../circuit/GateColumn.js';
-import { Serializer } from '../circuit/Serializer.js';
-import { flattenCircuit, scheduleColumns } from '../circuit/Flatten.js';
-import { StepTrace } from '../sim/StepTrace.js';
 import { gateControlCount, gateNeedsTarget2 } from '../editor/gatePalette.js';
 
-export const circuitMethods = {
-  resetCircuit(numQubits = 2) {
-    const limitStatus = this.getQubitLimitStatus(numQubits);
-    if (!limitStatus.allowed) {
-      this._status(`Qubit count ${numQubits} exceeds browser limit of ${limitStatus.maxQubits}. Circuit not created.`);
-      return;
-    }
-    const circuit = new Circuit({ numQubits, columns: [] });
-    this._setCircuit(circuit);
-    if (this._AIBuilderUI) this._aiBuilder = new this._AIBuilderUI({ numQubits, cache: this._cache });
-    if (this._IOAnalyzerUI) this._ioAnalyzer = new this._IOAnalyzerUI({ numQubits, cache: this._cache });
-    this._syncAuxQubitCounts(circuit);
-    if (limitStatus.advisory) {
-      this._status(limitStatus.advisory);
-    } else {
-      this._status('Ready. Click a palette gate to place it on the canvas.');
-    }
-  },
-  _setCircuit(circuit, { record = true } = {}) {
-    if (!(circuit instanceof Circuit)) {
-      throw new TypeError('AppController expects a Circuit instance');
-    }
-    const previousBreakpoints = this.getBreakpoints();
-    this._currentCircuit = circuit;
-    const instructions = flattenCircuit(circuit);
-    const schedule = scheduleColumns(instructions);
-    this._stepTrace = new StepTrace(schedule, circuit.numQubits);
-    if (this._Inspector) {
-      this._inspector = new this._Inspector(this._stepTrace);
-    }
-    if (this._Debugger) {
-      this._debugger = new this._Debugger(this._stepTrace);
-      this._debuggerUI = new this._DebuggerUI(this._debugger);
-      this._debuggerUI.onStepChange(() => this.notify());
-      previousBreakpoints.forEach((col) => this.addBreakpoint(col));
-    }
-    if (record) this._history.push(circuit);
-    this.refreshDebuggerTimeline();
-  },
+export const placementMethods = {
   placeGateAt(column, row, gateName) {
     const limitStatus = this.getQubitLimitStatus(this.numQubits);
     if (!limitStatus.allowed) {
@@ -129,46 +88,104 @@ export const circuitMethods = {
     this._setCircuit(nextCircuit);
     return { circuit: nextCircuit, conflict: false };
   },
-  applyCircuit(circuit) {
-    const limitStatus = this.getQubitLimitStatus(circuit.numQubits);
-    if (!limitStatus.allowed) {
-      this._status(`Qubit count ${circuit.numQubits} exceeds browser limit of ${limitStatus.maxQubits}. qubit limit exceeded. Circuit not applied.`);
-      return { conflict: true, reason: 'qubit limit exceeded' };
+  selectGate(column, row) {
+    const circuit = this._currentCircuit;
+    const n = circuit.numQubits;
+    if (!Number.isInteger(column) || column < 0 || column >= circuit.columns.length) {
+      this._status(`Invalid selection coordinates column=${column} row=${row}.`);
+      this._selectedEntry = null;
+      this._selectedColumn = null;
+      this._selectedRow = null;
+      return { conflict: true, reason: 'coordinate out of range' };
     }
-    this._setCircuit(circuit);
-    this._syncAuxQubitCounts(circuit);
-    if (limitStatus.advisory) {
-      this._status(limitStatus.advisory);
-    } else {
-      this._status('AI Builder circuit applied to editor.');
+    if (!Number.isInteger(row) || row < 0 || row >= n) {
+      this._status(`Invalid selection coordinates column=${column} row=${row}.`);
+      this._selectedEntry = null;
+      this._selectedColumn = null;
+      this._selectedRow = null;
+      return { conflict: true, reason: 'coordinate out of range' };
     }
+    const result = this._interaction.getSelectedGate(circuit, column, row);
+    if (result.conflict) {
+      this._status(result.reason);
+      this._selectedEntry = null;
+      this._selectedColumn = null;
+      this._selectedRow = null;
+      return { conflict: true, reason: result.reason };
+    }
+    const entry = this._catalog.find((e) => e.name === result.gate.name);
+    this._selectedEntry = entry ?? null;
+    this._selectedColumn = column;
+    this._selectedRow = row;
+    this.notify();
+    return { conflict: false, gate: result.gate, column, row };
+  },
+  moveGate(column, row, newColumn, newRow) {
+    const circuit = this._currentCircuit;
+    const n = circuit.numQubits;
+    for (const [c, r] of [[column, row], [newColumn, newRow]]) {
+      if (!Number.isInteger(c) || c < 0 || c >= circuit.columns.length || !Number.isInteger(r) || r < 0 || r >= n) {
+        this._status(`Invalid move coordinates column=${c} row=${r}.`);
+        return { conflict: true, reason: 'coordinate out of range' };
+      }
+    }
+    const result = this._interaction.moveGate(circuit, column, row, newColumn, newRow);
+    if (result.conflict) {
+      this._status(result.reason);
+      return { conflict: true, reason: result.reason };
+    }
+    this._setCircuit(result.circuit);
+    this.draw();
+    this.notify();
+    this._selectedColumn = newColumn;
+    this._selectedRow = newRow;
     return { conflict: false };
   },
-  _syncAuxQubitCounts(circuit) {
-    if (this._aiBuilder) this._aiBuilder.setNumQubits(circuit.numQubits);
-    if (this._ioAnalyzer) this._ioAnalyzer.setNumQubits(circuit.numQubits);
-  },
-  serialize() { return this._currentCircuit ? Serializer.toJson(this._currentCircuit) : ''; },
-  deserialize(json) {
-    try {
-      const circuit = Serializer.fromJson(json);
-      const limitStatus = this.getQubitLimitStatus(circuit.numQubits);
-      if (!limitStatus.allowed) {
-        const error = 'qubit limit exceeded';
-        this._status(`Import failed: ${error}.`);
-        return { ok: false, error };
-      }
-      this._setCircuit(circuit);
-      this._syncAuxQubitCounts(circuit);
-      if (limitStatus.advisory) {
-        this._status(limitStatus.advisory);
-      } else {
-        this._status('Circuit loaded from JSON.');
-      }
-      return { ok: true, circuit };
-    } catch (err) {
-      this._status(`Import failed: ${err.message}`);
-      return { ok: false, error: err.message };
+  deleteGate(column, row) {
+    const circuit = this._currentCircuit;
+    const n = circuit.numQubits;
+    if (!Number.isInteger(column) || column < 0 || column >= circuit.columns.length || !Number.isInteger(row) || row < 0 || row >= n) {
+      this._status(`Invalid delete coordinates column=${column} row=${row}.`);
+      return { conflict: true, reason: 'coordinate out of range' };
     }
+    const result = this._interaction.deleteGate(circuit, column, row);
+    if (result.conflict) {
+      this._status(result.reason);
+      return { conflict: true, reason: result.reason };
+    }
+    this._setCircuit(result.circuit);
+    this.draw();
+    this.notify();
+    this.clearSelection();
+    return { conflict: false };
+  },
+  replaceGate(column, row, gateName) {
+    const circuit = this._currentCircuit;
+    const n = circuit.numQubits;
+    if (!Number.isInteger(column) || column < 0 || column >= circuit.columns.length || !Number.isInteger(row) || row < 0 || row >= n) {
+      this._status(`Invalid replace coordinates column=${column} row=${row}.`);
+      return { conflict: true, reason: 'coordinate out of range' };
+    }
+    const entry = this._catalog.find((e) => e.name === gateName);
+    if (!entry) {
+      this._status(`Unknown gate: ${gateName}.`);
+      return { conflict: true, reason: 'unknown gate' };
+    }
+    const result = this._interaction.replaceGate(circuit, column, row, entry);
+    if (result.conflict) {
+      this._status(result.reason);
+      return { conflict: true, reason: result.reason };
+    }
+    this._setCircuit(result.circuit);
+    this.draw();
+    this.notify();
+    this._selectedColumn = column;
+    this._selectedRow = row;
+    return { conflict: false };
+  },
+  clearSelection() {
+    this._selectedEntry = null;
+    this._selectedColumn = null;
+    this._selectedRow = null;
   },
 };

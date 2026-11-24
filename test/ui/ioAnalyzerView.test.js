@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import { strictEqual, ok } from 'assert';
-import { initIOAnalyzerView } from '../../src/ui/io-analyzer-view.js';
+import { initIOAnalyzerView } from '../../src/ui/ioAnalyzerView.js';
 import { Circuit } from '../../src/circuit/Circuit.js';
 
 function makeElement() {

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import { strictEqual, ok } from 'assert';
-import { initAIExplainerView } from '../../src/ui/ai-explainer-view.js';
+import { initAIExplainerView } from '../../src/ui/aiExplainerView.js';
 import { AppController } from '../../src/ui/AppController.js';
 import { History } from '../../src/state/History.js';
 import { gateCatalog } from '../../src/editor/gatePalette.js';

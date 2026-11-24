@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import { strictEqual, ok } from 'assert';
-import { initCanvasRenderer } from '../../src/ui/canvas-renderer.js';
+import { initCanvasRenderer } from '../../src/ui/canvasRenderer.js';
 
 function makeElement() {
   const listeners = new Map();

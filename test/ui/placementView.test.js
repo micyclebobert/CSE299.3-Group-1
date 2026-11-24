@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import { strictEqual, ok } from 'assert';
-import { initPlacementView } from '../../src/ui/placement-view.js';
+import { initPlacementView } from '../../src/ui/placementView.js';
 import { Interaction } from '../../src/editor/Interaction.js';
 
 function makeElement() {

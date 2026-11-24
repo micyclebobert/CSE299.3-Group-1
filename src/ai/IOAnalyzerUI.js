@@ -54,6 +54,16 @@ function uniqueSortedRows(rows) {
   return [...set].sort((a, b) => a - b);
 }
 
+function validateRowsWithinBounds(rows, numQubits, what) {
+  for (const r of rows) {
+    if (r >= numQubits) {
+      throw new RangeError(
+        `${what} row ${r} is out of bounds [0, ${numQubits - 1}] for numQubits=${numQubits}`
+      );
+    }
+  }
+}
+
 export class IOAnalyzerUI {
   #inputRows;
   #outputRows;
@@ -164,13 +174,17 @@ export class IOAnalyzerUI {
   }
 
   setInputRows(rows) {
-    this.#inputRows = uniqueSortedRows(rows);
+    const validated = uniqueSortedRows(rows);
+    validateRowsWithinBounds(validated, this.#numQubits, 'Input');
+    this.#inputRows = validated;
     this.#clearAnalysis();
     this.#callbacks.onInputRowsChange(this.getStateSnapshot());
   }
 
   setOutputRows(rows) {
-    this.#outputRows = uniqueSortedRows(rows);
+    const validated = uniqueSortedRows(rows);
+    validateRowsWithinBounds(validated, this.#numQubits, 'Output');
+    this.#outputRows = validated;
     this.#clearAnalysis();
     this.#callbacks.onOutputRowsChange(this.getStateSnapshot());
   }

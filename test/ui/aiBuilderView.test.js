@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import { strictEqual, ok } from 'assert';
-import { initAIBuilderView } from '../../src/ui/ai-builder-view.js';
+import { initAIBuilderView } from '../../src/ui/aiBuilderView.js';
 
 function makeElement() {
   const listeners = new Map();

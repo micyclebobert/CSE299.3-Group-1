@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import { strictEqual, ok } from 'assert';
-import { initCodeView } from '../../src/ui/code-view.js';
+import { initCodeView } from '../../src/ui/codeView.js';
 
 function makeElement() {
   const listeners = new Map();

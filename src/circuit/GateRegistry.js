@@ -22,10 +22,10 @@
 
 const FIXED_GATES = new Map();
 const PARAMETERIZED_GATES = new Map();
-let sealed = false;
+
 
 function requireUnsealed() {
-  if (sealed) {
+  if (Object.isFrozen(FIXED_GATES)) {
     throw new Error('Gate registry is sealed: no further registration allowed');
   }
 }
@@ -70,7 +70,7 @@ export function registerParameterizedGate(name, fn) {
  * gates have been registered (by main.js).
  */
 export function seal() {
-  sealed = true;
+  Object.freeze(FIXED_GATES);
   Object.freeze(FIXED_GATES);
   Object.freeze(PARAMETERIZED_GATES);
 }

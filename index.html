@@ -24,6 +24,8 @@
     button:active { background: var(--simqc-accent); border-color: var(--simqc-accent); color: var(--simqc-accent-contrast); }
     button:focus-visible { outline: 2px solid var(--simqc-focus); outline-offset: 2px; }
     button:disabled { color: var(--simqc-text-muted); border-color: var(--simqc-border); cursor: not-allowed; opacity: 0.65; }
+    button.selected { background: var(--simqc-accent); border-color: var(--simqc-accent); color: var(--simqc-accent-contrast); }
+    button.selected:hover { background: var(--simqc-accent-hover); }
     a { color: var(--simqc-accent); }
     ::selection { background: var(--simqc-selection); color: var(--simqc-foreground); }
     #gate-palette { display: flex; flex-direction: column; gap: 8px; overflow-y: auto; }
@@ -53,17 +55,39 @@
     .breakpoint-row { padding: 2px 6px; color: var(--simqc-text-muted); border-bottom: 1px solid var(--simqc-border); }
     .breakpoint-row:last-child { border-bottom: none; }
     .breakpoint-row.breakpoint-active { color: var(--simqc-accent); font-weight: 600; background: var(--simqc-panel-raised); }
+    .copy-feedback { font-size: 11px; color: var(--simqc-accent); min-height: 14px; margin-top: 4px; }
+    .share-row { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; }
+    .share-row input[type="text"] { flex: 1; background: var(--simqc-control); border: 1px solid var(--simqc-border-strong); color: var(--simqc-foreground); padding: 4px 6px; font: inherit; font-family: ui-monospace, monospace; font-size: 11px; border-radius: 3px; }
+    .import-row { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; flex-wrap: wrap; }
+    .import-row input[type="file"] { font-size: 11px; }
+    .tab-content { display: none; overflow: auto; }
+    .tab-content.active { display: block; }
+    .localstorage-section { margin-top: 8px; border: 1px solid var(--simqc-border); border-radius: 3px; padding: 6px; background: var(--simqc-panel-raised); font-size: 11px; }
+    .localstorage-section .panel-title { font-size: 11px; border-bottom: none; padding-bottom: 0; margin-bottom: 4px; }
+    .drop-target { outline: 2px solid var(--simqc-accent); outline-offset: -2px; }
+    .ghost { opacity: 0.55; pointer-events: none; }
+
+    @media (max-width: 900px) {
+      #app { grid-template-areas: "main" "left" "right" "bottom"; grid-template-rows: 1fr 200px 200px 150px; grid-template-columns: 1fr; }
+      .panel.left, .panel.right, .panel.bottom, .panel.main { grid-area: auto; }
+    }
+    @media (max-width: 600px) {
+      #app { grid-template-rows: 1fr 160px 160px 120px; }
+      .panel { padding: 6px; gap: 6px; }
+      .panel-title { font-size: 11px; margin-bottom: 4px; }
+      button { padding: 4px 8px; font-size: 12px; }
+    }
   </style>
 </head>
 <body>
   <div id="app">
-    <aside class="panel left" id="panel-left">
-      <div class="panel-title">Gate Palette <button class="panel-toggle" data-toggle="left">▾</button></div>
-      <div id="gate-palette" class="muted">Loading gates…</div>
+    <aside class="panel left" id="panel-left" aria-label="Gate Palette panel">
+      <div class="panel-title" role="tab" id="tab-left" aria-controls="panel-left" aria-selected="true" tabindex="0">Gate Palette <button class="panel-toggle" data-toggle="left" aria-label="Collapse Gate Palette panel">▾</button></div>
+      <div id="gate-palette" class="muted" role="region" aria-label="Gate Palette">Loading gates…</div>
     </aside>
-    <section class="panel main" id="panel-main">
-      <div class="panel-title" style="display:flex;justify-content:space-between;align-items:center;">
-        Circuit Editor <button class="panel-toggle" data-toggle="main">▾</button>
+    <section class="panel main" id="panel-main" aria-label="Circuit Editor panel">
+      <div class="panel-title" style="display:flex;justify-content:space-between;align-items:center;" role="tab" id="tab-main" aria-controls="panel-main" aria-selected="true" tabindex="0">
+        Circuit Editor <button class="panel-toggle" data-toggle="main" aria-label="Collapse Circuit Editor panel">▾</button>
         <div class="toolbar" style="margin-left:auto;">
           <button id="btn-simulate">Simulate</button>
           <button id="btn-reset">Reset</button>
@@ -71,63 +95,114 @@
           <button id="btn-redo" title="Redo">↷</button>
         </div>
       </div>
-      <canvas id="circuit"></canvas>
+      <canvas id="circuit" role="img" aria-label="Quantum circuit editor canvas" title="Quantum circuit grid: drag gates from the palette onto qubit rows. Use keyboard to navigate cells.">Your browser does not support the HTML canvas element, which is required for the circuit editor.</canvas>
     </section>
-    <aside class="panel right" id="panel-right">
-      <div class="panel-title" style="display:flex;justify-content:space-between;align-items:center;">
-        Code & AI <button class="panel-toggle" data-toggle="right">▾</button>
+    <aside class="panel right" id="panel-right" aria-label="Code & AI panel">
+      <div class="panel-title" style="display:flex;justify-content:space-between;align-items:center;" role="tab" id="tab-right" aria-controls="panel-right" aria-selected="true" tabindex="0">
+        Code & AI <button class="panel-toggle" data-toggle="right" aria-label="Collapse Code & AI panel">▾</button>
       </div>
-      <div class="toolbar">
-        <button id="btn-copy">Copy</button>
-        <button id="btn-import">Import</button>
-        <button id="btn-export">Export</button>
-        <button id="btn-share">Share URL</button>
+      <div class="tab-strip" id="code-ai-tab-strip" role="tablist" aria-label="Code and AI tabs">
+        <button class="tab active" data-tab="canonical" role="tab" aria-selected="true" aria-controls="tab-canonical" tabindex="0">Canonical JSON</button>
+        <button class="tab" data-tab="share-url" role="tab" aria-selected="false" aria-controls="tab-share-url" tabindex="-1">Compressed URL</button>
+        <button class="tab" data-tab="exported-code" role="tab" aria-selected="false" aria-controls="tab-exported-code" tabindex="-1">Exported Code</button>
+        <button class="tab" data-tab="ai-explainer" role="tab" aria-selected="false" aria-controls="tab-ai-explainer" tabindex="-1">AI Explainer</button>
+        <button class="tab" data-tab="ai-builder" role="tab" aria-selected="false" aria-controls="tab-ai-builder" tabindex="-1">AI Builder</button>
+        <button class="tab" data-tab="io-analyzer" role="tab" aria-selected="false" aria-controls="tab-io-analyzer" tabindex="-1">I/O Analyzer</button>
       </div>
-      <textarea id="code-view" spellcheck="false">{}</textarea>
-      <div class="note">Canonical SimQC v1 JSON. Edit and press Enter to apply.</div>
-      <div id="ai-explainer" class="ai-section">
-        <div class="panel-title">AI Explainer</div>
-        <button id="btn-explain">Explain circuit</button>
-        <div id="ai-output" class="muted"></div>
+
+      <div class="tab-content active" id="tab-canonical" role="tabpanel" aria-labelledby="tab-canonical" tabindex="0">
+        <div class="toolbar">
+          <button id="btn-copy">Copy JSON</button>
+          <button id="btn-import">Import JSON</button>
+          <button id="btn-export">Download JSON</button>
+          <button id="btn-share">Share URL</button>
+        </div>
+        <textarea id="code-view" spellcheck="false" aria-label="Canonical circuit JSON editor">{}</textarea>
+        <div class="note">Canonical SimQC v1 JSON. Edit and press Enter to apply.</div>
+        <div id="copy-feedback" class="copy-feedback"></div>
       </div>
-      <div id="ai-builder" class="ai-section">
-        <div class="panel-title">AI Builder</div>
-        <div class="field"><span class="toolbar-label">Prompt:</span><input id="ai-prompt" type="text" placeholder="e.g. Bell state on 2 qubits"></div>
-        <div class="field"><span class="toolbar-label">Qubits:</span><input id="builder-qubits" type="number" value="2" min="1"></div>
-        <button id="btn-build">Build circuit</button>
-        <div id="builder-output" class="ai-output"></div>
+
+      <div class="tab-content" id="tab-share-url" role="tabpanel" aria-labelledby="tab-share-url" tabindex="0">
+        <div class="share-row">
+          <label for="share-url">Shareable URL:</label>
+          <input id="share-url" type="text" readonly placeholder="Shareable URL appears here" aria-label="Shareable URL">
+          <button id="btn-copy-share-url">Copy</button>
+        </div>
+        <div class="import-row">
+          <label for="file-picker">Import from file:</label>
+          <input id="file-picker" type="file" accept=".json" aria-label="Import circuit JSON file">
+          <button id="btn-import-file">Import File</button>
+        </div>
+        <div id="import-feedback" class="copy-feedback"></div>
       </div>
-      <div id="io-analyzer" class="ai-section">
-        <div class="panel-title">I/O Analyzer</div>
-        <div class="io-row"><span class="toolbar-label">Input row:</span><input id="io-input-row" type="number" value="0" min="0"><span class="toolbar-label">Output row:</span><input id="io-output-row" type="number" value="1" min="0"><button id="btn-analyze">Analyze</button></div>
-        <div id="io-output" class="io-output"></div>
+
+      <div class="tab-content" id="tab-exported-code" role="tabpanel" aria-labelledby="tab-exported-code" tabindex="0">
+        <textarea id="exported-code-view" spellcheck="false" height="200px" aria-label="Exported circuit code">{}</textarea>
+        <div class="note">Exported code view of the current circuit.</div>
+      </div>
+
+      <div class="tab-content" id="tab-ai-explainer" role="tabpanel" aria-labelledby="tab-ai-explainer" tabindex="0">
+        <div class="ai-section">
+          <div class="panel-title">AI Explainer</div>
+          <button id="btn-explain">Explain circuit</button>
+          <div id="ai-output" class="muted" aria-live="polite"></div>
+        </div>
+      </div>
+
+      <div class="tab-content" id="tab-ai-builder" role="tabpanel" aria-labelledby="tab-ai-builder" tabindex="0">
+        <div class="ai-section">
+          <div class="panel-title">AI Builder</div>
+          <div class="field"><label for="ai-prompt" class="toolbar-label">Prompt:</label><input id="ai-prompt" type="text" placeholder="e.g. Bell state on 2 qubits" aria-label="AI circuit build prompt"></div>
+          <div class="field"><label for="builder-qubits" class="toolbar-label">Qubits:</label><input id="builder-qubits" type="number" value="2" min="1" aria-label="Number of qubits for AI-built circuit"></div>
+          <div class="field"><label for="builder-model" class="toolbar-label">Model:</label><input id="builder-model" type="text" value="qwen2.5:3b" aria-label="AI model name"></div>
+          <button id="btn-build">Build circuit</button>
+          <div id="builder-output" class="ai-output" aria-live="polite"></div>
+          <div id="builder-confirm" class="copy-feedback"></div>
+        </div>
+      </div>
+
+      <div class="tab-content" id="tab-io-analyzer" role="tabpanel" aria-labelledby="tab-io-analyzer" tabindex="0">
+        <div class="ai-section">
+          <div class="panel-title">I/O Analyzer</div>
+          <div class="io-row"><label for="io-input-row" class="toolbar-label">Input rows:</label><input id="io-input-row" type="text" value="0" placeholder="e.g. 0,1" aria-label="Input row indices"><label for="io-output-row" class="toolbar-label">Output rows:</label><input id="io-output-row" type="text" value="1" placeholder="e.g. 1" aria-label="Output row indices"><button id="btn-analyze">Analyze</button></div>
+          <div id="io-output" class="io-output" aria-live="polite"></div>
+        </div>
+      </div>
+
+      <div class="localstorage-section">
+        <div class="panel-title">Local Storage</div>
+        <button id="btn-localstorage-save">Save to LocalStorage</button>
+        <button id="btn-localstorage-load">Load from LocalStorage</button>
+        <button id="btn-localstorage-reset">Reset Circuit</button>
+        <div class="small">Circuit and layout are persisted to browser localStorage. Reset clears the current circuit only.</div>
       </div>
     </aside>
-    <aside class="panel bottom" id="panel-bottom">
-      <div class="panel-title" style="display:flex;justify-content:space-between;align-items:center;">
-        Inspector <button class="panel-toggle" data-toggle="bottom">▾</button>
+    <aside class="panel bottom" id="panel-bottom" aria-label="Inspector panel">
+      <div class="panel-title" style="display:flex;justify-content:space-between;align-items:center;" role="tab" id="tab-bottom" aria-controls="panel-bottom" aria-selected="true" tabindex="0">
+        Inspector <button class="panel-toggle" data-toggle="bottom" aria-label="Collapse Inspector panel">▾</button>
         <div class="toolbar" style="margin-left:auto;">
           <span id="debug-step" class="small">Step <span id="step-current">0</span>/<span id="step-total">0</span></span>
           <button id="btn-step">Step</button>
           <button id="btn-run">Run</button>
           <button id="btn-breakpoint">Toggle BP</button>
           <button id="btn-run-to-bp">Run to BP</button>
-          <input id="bp-column" type="number" value="0" min="0" style="width:50px">
-          <input id="timeline-scrub" type="range" min="0" max="0" style="width:150px">
-          <div id="breakpoint-list" class="breakpoint-list"></div>
+          <label for="bp-column" class="toolbar-label">Breakpoint column:</label><input id="bp-column" type="number" value="0" min="0" style="width:50px" aria-label="Breakpoint column index">
+          <label for="timeline-scrub" class="toolbar-label">Timeline:</label><input id="timeline-scrub" type="range" min="0" max="0" style="width:150px" aria-label="Timeline scrubber">
+          <div id="breakpoint-list" class="breakpoint-list" aria-label="Breakpoints"></div>
           <div class="small">Step k = state after column k-1; breakpoint at step k halts before column k.</div>
         </div>
       </div>
-      <div class="tab-strip" id="tab-strip">
-        <button class="tab active" data-tab="state">State</button>
-        <button class="tab" data-tab="bloch">Bloch Spheres</button>
+      <div class="tab-strip" id="tab-strip" role="tablist" aria-label="Inspector tabs">
+        <button class="tab active" data-tab="state" role="tab" aria-selected="true" aria-controls="tab-state" tabindex="0">State</button>
+        <button class="tab" data-tab="bloch" role="tab" aria-selected="false" aria-controls="tab-bloch" tabindex="-1">Bloch Spheres</button>
       </div>
-      <div id="inspector-content" class="muted">No state yet.</div>
-      <div class="field"><span class="toolbar-label">Shots:</span><input id="shots-input" type="number" value="1024" min="1"><button id="btn-sample">Sample</button></div>
-      <div id="status" class="status"></div>
+      <div id="tab-state" class="tab-content active" role="tabpanel" aria-labelledby="tab-state" tabindex="0"><div id="inspector-content" class="muted" aria-live="polite">No state yet.</div></div>
+      <div id="tab-bloch" class="tab-content" role="tabpanel" aria-labelledby="tab-bloch" tabindex="0"></div>
+      <div class="field"><label for="shots-input" class="toolbar-label">Shots:</label><input id="shots-input" type="number" value="1024" min="1" aria-label="Number of shots for sampling"><button id="btn-sample">Sample</button></div>
+      <div id="status" class="status" role="status" aria-live="polite"></div>
     </aside>
   </div>
 
-  <script type="module" src="./src/ui/browser-app.js"></script>
+  <script type="module" src="./src/ui/browserApp.js"></script>
 </body>
 </html>

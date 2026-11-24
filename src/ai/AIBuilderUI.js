@@ -16,6 +16,7 @@ const STATUS_BUILDING = 'building';
 const STATUS_OK = 'ok';
 const STATUS_ERROR = 'error';
 const BUILD_CACHE_VERSION = 'builder-v1';
+const DEFAULT_MODEL = 'qwen2.5:3b';
 
 function isPositiveInteger(n) {
   return Number.isInteger(n) && n >= 1;
@@ -35,6 +36,7 @@ function defaultCallbacks() {
 export class AIBuilderUI {
   #prompt;
   #numQubits;
+  #model;
   #status;
   #generatedJson;
   #circuit;
@@ -47,6 +49,7 @@ export class AIBuilderUI {
   constructor(options = {}) {
     this.#prompt = '';
     this.#numQubits = isPositiveInteger(options.numQubits) ? options.numQubits : 2;
+    this.#model = typeof options.model === 'string' && options.model.length > 0 ? options.model : DEFAULT_MODEL;
     this.#status = STATUS_IDLE;
     this.#generatedJson = null;
     this.#circuit = null;
@@ -74,6 +77,10 @@ export class AIBuilderUI {
 
   get numQubits() {
     return this.#numQubits;
+  }
+
+  get model() {
+    return this.#model;
   }
 
   get status() {
@@ -108,6 +115,7 @@ export class AIBuilderUI {
     return {
       prompt: this.#prompt,
       numQubits: this.#numQubits,
+      
       status: this.#status,
       generatedJson: this.#generatedJson,
       circuit: this.#circuit,
@@ -141,6 +149,17 @@ export class AIBuilderUI {
     this.#notifyChange();
   }
 
+  setModel(model) {
+    if (typeof model !== 'string' || model.length === 0) {
+      throw new RangeError(
+        `AIBuilderUI.setModel expects a non-empty string, got: ${String(model)}`
+      );
+    }
+    this.#model = model;
+    this.#clearBuild();
+    this.#notifyChange();
+  }
+
   // ---- build flow -----------------------------------------------------------
 
   async build(options = {}) {
@@ -160,8 +179,10 @@ export class AIBuilderUI {
     this.#circuit = null;
     this.#error = null;
     this.#cacheHit = null;
+
+    const model = options.model || this.#model;
     this.#cacheKey = Cache.sha256Hex(
-      `${this.#prompt}|${this.#numQubits}|${BUILD_CACHE_VERSION}`
+      `${this.#prompt}|${this.#numQubits}|${model}|${BUILD_CACHE_VERSION}`
     );
     this.#callbacks.onBuildStart(this.getStateSnapshot());
 
@@ -180,7 +201,8 @@ export class AIBuilderUI {
     let result;
     try {
       result = await AIBuilder.build(this.#prompt, this.#numQubits, {
-        model: options.model || 'qwen2.5:3b',
+        model,
+        retries: options.retries,
       });
     } catch (err) {
       this.#setError(`Builder threw: ${err.message}`);
@@ -197,6 +219,7 @@ export class AIBuilderUI {
         ok: true,
         circuit: result.circuit,
         json: result.json,
+        model: result.model,
       });
       this.#callbacks.onBuildOk(this.getStateSnapshot());
     } else {

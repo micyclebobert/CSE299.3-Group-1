@@ -46,6 +46,30 @@ async function callOllama(prompt, options = {}) {
 }
 
 /**
+ * Call Ollama with retries on transient failure.
+ * @param {string} prompt
+ * @param {object} [options]
+ * @param {number} [retries=3]
+ * @returns {Promise<string>}
+ */
+async function callOllamaWithRetry(prompt, options = {}, retries = 3) {
+  let lastErr;
+  for (let attempt = 0; attempt < retries; attempt += 1) {
+    try {
+      return await callOllama(prompt, options);
+    } catch (err) {
+      lastErr = err;
+      // Only retry on network errors (fetch throws TypeError).
+      // HTTP errors and malformed responses are not retried.
+      if (err.name !== 'TypeError') {
+        break;
+      }
+    }
+  }
+  throw lastErr;
+}
+
+/**
  * Extract a JSON object from text that may be wrapped in markdown code fences
  * or surrounded by prose.
  *
@@ -105,40 +129,42 @@ function buildBuildPrompt(prompt, numQubits) {
  * @param {number} numQubits
  * @param {object} [options]
  * @param {string} [options.model]
- * @returns {Promise<{ok: true, circuit, json} | {ok: false, error, json?}>}
+ * @param {number} [options.retries=3]
+ * @returns {Promise<{ok: true, circuit, json, model} | {ok: false, error, json?, model?}>}
  */
 async function build(prompt, numQubits, options = {}) {
   if (typeof prompt !== 'string' || prompt.length === 0) {
-    return { ok: false, error: 'prompt must be a non-empty string' };
+    return { ok: false, error: 'prompt must be a non-empty string', model: options.model || DEFAULT_MODEL };
   }
   if (!Number.isInteger(numQubits) || numQubits < 1) {
-    return { ok: false, error: 'numQubits must be a positive integer' };
+    return { ok: false, error: 'numQubits must be a positive integer', model: options.model || DEFAULT_MODEL };
   }
 
   const jsonPrompt = buildBuildPrompt(prompt, numQubits);
+  const model = options.model || DEFAULT_MODEL;
 
   let raw;
   try {
-    raw = await callOllama(jsonPrompt, options);
+    raw = await callOllamaWithRetry(jsonPrompt, { model }, options.retries || 1);
   } catch (err) {
-    return { ok: false, error: `Ollama unavailable: ${err.message}` };
+    return { ok: false, error: `Ollama unavailable after retries: ${err.message}`, model };
   }
 
   let parsed;
   try {
     parsed = extractJson(raw);
   } catch (err) {
-    return { ok: false, error: `Could not extract JSON from model output: ${err.message}`, json: raw };
+    return { ok: false, error: `Could not extract JSON from model output: ${err.message}`, json: raw, model };
   }
 
   let circuit;
   try {
     circuit = Serializer.fromJson(JSON.stringify(parsed));
   } catch (err) {
-    return { ok: false, error: `Circuit JSON failed validation: ${err.message}`, json: JSON.stringify(parsed) };
+    return { ok: false, error: `Circuit JSON failed validation: ${err.message}`, json: JSON.stringify(parsed), model };
   }
 
-  return { ok: true, circuit, json: JSON.stringify(parsed) };
+  return { ok: true, circuit, json: JSON.stringify(parsed), model };
 }
 
 /**
@@ -151,7 +177,8 @@ export class AIBuilder {
    * @param {number} numQubits
    * @param {object} [options]
    * @param {string} [options.model]
-   * @returns {Promise<{ok: true, circuit, json} | {ok: false, error, json?}>}
+   * @param {number} [options.retries=3]
+   * @returns {Promise<{ok: true, circuit, json, model} | {ok: false, error, json?, model?}>}
    */
   static build(prompt, numQubits, options = {}) {
     return build(prompt, numQubits, options);

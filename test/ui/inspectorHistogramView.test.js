@@ -1,10 +1,10 @@
 import { test } from 'node:test';
 import { strictEqual, ok } from 'assert';
 import { readFileSync } from 'node:fs';
-import { initInspectorHistogramView } from '../../src/ui/inspector-histogram-view.js';
+import { initInspectorHistogramView } from '../../src/ui/inspectorHistogramView.js';
 
 function source() {
-  return readFileSync(new URL('../../src/ui/inspector-histogram-view.js', import.meta.url), 'utf8');
+  return readFileSync(new URL('../../src/ui/inspectorHistogramView.js', import.meta.url), 'utf8');
 }
 
 test('inspector-histogram-view imports theme, StateVector and sampleHistogram', () => {

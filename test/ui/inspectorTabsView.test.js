@@ -1,10 +1,10 @@
 import { test } from 'node:test';
 import { strictEqual, ok } from 'assert';
 import { readFileSync } from 'node:fs';
-import { initInspectorTabsView } from '../../src/ui/inspector-tabs-view.js';
+import { initInspectorTabsView } from '../../src/ui/inspectorTabsView.js';
 
 function source() {
-  return readFileSync(new URL('../../src/ui/inspector-tabs-view.js', import.meta.url), 'utf8');
+  return readFileSync(new URL('../../src/ui/inspectorTabsView.js', import.meta.url), 'utf8');
 }
 
 test('inspector-tabs-view exports initInspectorTabsView', () => {

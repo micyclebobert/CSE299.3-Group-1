@@ -1,10 +1,10 @@
 import { test } from 'node:test';
 import { strictEqual, ok } from 'assert';
 import { readFileSync } from 'node:fs';
-import { initInspectorStateView, entropyColor, fmt } from '../../src/ui/inspector-state-view.js';
+import { initInspectorStateView, entropyColor, fmt } from '../../src/ui/inspectorStateView.js';
 
 function source() {
-  return readFileSync(new URL('../../src/ui/inspector-state-view.js', import.meta.url), 'utf8');
+  return readFileSync(new URL('../../src/ui/inspectorStateView.js', import.meta.url), 'utf8');
 }
 
 test('inspector-state-view imports theme from ./theme.js', () => {

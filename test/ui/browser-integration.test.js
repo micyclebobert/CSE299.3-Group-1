@@ -15,9 +15,9 @@ import {
   PANEL_RIGHT,
   PANEL_BOTTOM,
 } from '../../src/ui/panels.js';
-import { initAIExplainerView } from '../../src/ui/ai-explainer-view.js';
-import { initAIBuilderView } from '../../src/ui/ai-builder-view.js';
-import { initIOAnalyzerView } from '../../src/ui/io-analyzer-view.js';
+import { initAIExplainerView } from '../../src/ui/aiExplainerView.js';
+import { initAIBuilderView } from '../../src/ui/aiBuilderView.js';
+import { initIOAnalyzerView } from '../../src/ui/ioAnalyzerView.js';
 import { Cache } from '../../src/ai/Cache.js';
 import { SparseSummary } from '../../src/ai/SparseSummary.js';
 import { AIBuilderUI } from '../../src/ai/AIBuilderUI.js';

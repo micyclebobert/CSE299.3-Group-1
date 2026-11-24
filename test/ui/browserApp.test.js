@@ -125,7 +125,7 @@ globalThis.URL = {
 test('browser-app imports and wires DOM without throwing', async () => {
   requestedIds.clear();
   windowAdded.length = 0;
-  await import('../../src/ui/browser-app.js');
+  await import('../../src/ui/browserApp.js');
   const expected = [
     'circuit', 'gate-palette', 'inspector-content', 'code-view', 'status',
     'tab-strip', 'step-current', 'step-total', 'breakpoint-list',
