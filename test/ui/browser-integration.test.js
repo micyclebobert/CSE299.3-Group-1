@@ -84,6 +84,7 @@ class MockAIBuilderUI {
     this.circuit = null;
     this.onChange = () => {};
   }
+  setNumQubits() {}
   setPrompt() {}
   async build() {
     this.status = 'ok';
@@ -96,6 +97,7 @@ class MockIOAnalyzerUI {
     this.status = 'idle';
     this.onChange = () => {};
   }
+  setNumQubits() {}
   setInputRows() {}
   setOutputRows() {}
   analyze() {

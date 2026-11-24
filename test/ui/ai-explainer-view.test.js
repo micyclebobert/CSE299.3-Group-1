@@ -7,6 +7,7 @@ import { gateCatalog } from '../../src/editor/gatePalette.js';
 import { Interaction } from '../../src/editor/Interaction.js';
 import { Cache } from '../../src/ai/Cache.js';
 import { SparseSummary } from '../../src/ai/SparseSummary.js';
+import { AIExplainer } from '../../src/ai/AIExplainer.js';
 
 // Seed the GateRegistry so StepTrace can resolve gate IDs.
 import '../../src/main.js';
@@ -62,10 +63,10 @@ function buildApp() {
   return { app, btnEl };
 }
 
-test('initAIExplainerView builds one SparseSummary per virtual column', async () => {
-  const { app, btnEl } = buildApp();
-  app.placeGateAt(0, 0, 'H');
-  app.placeGateAt(1, 1, 'H');
+test('cache fallback does not throw Cache is not defined when no cache provided', async () => {
+  const { app } = buildApp();
+  const aiOutput = makeElement();
+  globalThis.document.getElementById = () => aiOutput;
 
   let explainCalled = null;
   class MockAIExplainer {
@@ -75,31 +76,102 @@ test('initAIExplainerView builds one SparseSummary per virtual column', async ()
     }
   }
 
-  const aiOutput = makeElement();
-  globalThis.document.getElementById = () => aiOutput;
-  initAIExplainerView(app, aiOutput, MockAIExplainer, SparseSummary, new Cache());
+  // No cache argument; app has no cache -> must fall back to new Cache().
+  initAIExplainerView(app, aiOutput, MockAIExplainer, SparseSummary);
 
   const clickListeners = aiOutput.listeners.get('click');
   ok(clickListeners && clickListeners.length > 0, 'click listener registered');
+
+  app.placeGateAt(0, 0, 'H');
   await clickListeners[0]();
 
   ok(explainCalled, 'AIExplainer.explain was called');
-  strictEqual(explainCalled.numQubits, 2, 'numQubits passed through');
-
-  // One summary per virtual column: vc=0 and vc=1
-  strictEqual(explainCalled.summaries.length, 2, 'one summary per virtual column');
-  ok(explainCalled.summaries[0], 'summary present at virtual column 0');
-  ok(explainCalled.summaries[1], 'summary present at virtual column 1');
-  strictEqual(explainCalled.summaries[2], undefined, 'no entry at virtual column 2');
-
-  // stateIdentity included in options for cache key
-  ok(explainCalled.options.stateIdentity, 'stateIdentity present for cache key');
-  strictEqual(typeof explainCalled.options.stateIdentity, 'string', 'stateIdentity is a string');
-
-  globalThis.document.getElementById = () => btnEl;
+  ok(explainCalled.options.cache, 'cache fallback provided');
+  strictEqual(
+    explainCalled.options.cache instanceof Cache,
+    true,
+    'cache fallback is a Cache instance',
+  );
 });
 
-test('initAIExplainerView handles empty circuit', async () => {
+test('state boundary selection produces one summary per boundary', async () => {
+  const { app } = buildApp();
+  app.placeGateAt(0, 0, 'H');
+  app.placeGateAt(1, 1, 'H');
+
+  const aiOutput = makeElement();
+  globalThis.document.getElementById = () => aiOutput;
+
+  let explainCalled = null;
+  class MockAIExplainer {
+    async explain(instructions, summaries, numQubits, options) {
+      explainCalled = { instructions, summaries, numQubits, options };
+      return 'explanation text';
+    }
+  }
+
+  const view = initAIExplainerView(app, aiOutput, MockAIExplainer, SparseSummary, new Cache());
+  ok(typeof view.setStateBoundary === 'function', 'setStateBoundary exposed');
+
+  const clickListeners = aiOutput.listeners.get('click');
+
+  // Default boundary is 'final' -> one summary.
+  await clickListeners[0]();
+  ok(explainCalled, 'explain called');
+  strictEqual(explainCalled.summaries.length, 1, 'one summary for final boundary');
+
+  // Select step boundary -> one summary at that step.
+  explainCalled = null;
+  view.setStateBoundary('step', 0);
+  await clickListeners[0]();
+  strictEqual(explainCalled.summaries.length, 1, 'one summary for step boundary');
+});
+
+test('gate description keys match registered IDs in template fallback', async () => {
+  const explainer = new AIExplainer();
+  const instructions = [
+    { gateId: 'Rx', target: 0, virtualColumn: 0, controls: [], thetaRad: 0.5 },
+    { gateId: 'Ry', target: 1, virtualColumn: 1, controls: [], thetaRad: 0.5 },
+    { gateId: 'Rz', target: 0, virtualColumn: 2, controls: [], thetaRad: 0.5 },
+    {
+      gateId: 'Toffoli',
+      target: 2,
+      virtualColumn: 3,
+      controls: [{ row: 0, on: true }, { row: 1, on: true }],
+    },
+  ];
+  const text = await explainer.explain(instructions, [], 3, {});
+  ok(text.includes('X-axis rotation'), 'Rx maps to X-axis rotation');
+  ok(text.includes('Y-axis rotation'), 'Ry maps to Y-axis rotation');
+  ok(text.includes('Z-axis rotation'), 'Rz maps to Z-axis rotation');
+  ok(
+    text.includes('controlled-controlled-NOT (Toffoli)'),
+    'Toffoli maps to full description',
+  );
+  ok(!text.includes('Rx gate'), 'Rx does not fall through to generic');
+});
+
+test('context summary info is included in output', async () => {
+  const { app } = buildApp();
+  app.placeGateAt(0, 0, 'H');
+  const aiOutput = makeElement();
+  globalThis.document.getElementById = () => aiOutput;
+
+  class MockAIExplainer {
+    async explain() { return 'explanation text'; }
+  }
+  initAIExplainerView(app, aiOutput, MockAIExplainer, SparseSummary, new Cache());
+
+  const clickListeners = aiOutput.listeners.get('click');
+  await clickListeners[0]();
+
+  ok(aiOutput.textContent.startsWith('Context sent:'), 'output begins with Context sent section');
+  ok(aiOutput.textContent.includes('boundary=final'), 'boundary included');
+  ok(aiOutput.textContent.includes('summaries=1'), 'summary count included');
+  ok(aiOutput.textContent.includes('explanation text'), 'explanation appended');
+});
+
+test('empty circuit handling preserved', async () => {
   const { app } = buildApp();
   const aiOutput = makeElement();
   globalThis.document.getElementById = () => aiOutput;
@@ -107,7 +179,7 @@ test('initAIExplainerView handles empty circuit', async () => {
   class MockAIExplainer {
     async explain() { return 'x'; }
   }
-  initAIExplainerView(app, aiOutput, new MockAIExplainer(), SparseSummary, new Cache());
+  initAIExplainerView(app, aiOutput, MockAIExplainer, SparseSummary, new Cache());
 
   const clickListeners = aiOutput.listeners.get('click');
   ok(clickListeners && clickListeners.length > 0, 'click listener registered');
@@ -115,3 +187,5 @@ test('initAIExplainerView handles empty circuit', async () => {
 
   strictEqual(aiOutput.textContent, 'Empty circuit: no instructions to explain.');
 });
+
+globalThis.document.getElementById = () => btnEl;

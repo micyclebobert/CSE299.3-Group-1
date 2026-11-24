@@ -45,13 +45,20 @@ export function initDebuggerView(app, stepCurrent, stepTotal, breakpointListEl) 
     refreshTimeline();
   });
 
+  // Breakpoint semantics:
+  //   Step 0 is the initial |0...0> state (no columns applied yet).
+  //   Step k (1 <= k <= scheduleLength) is the state after column k-1 has
+  //   been applied. A breakpoint at "column k" therefore breaks at state step
+  //   k, i.e. the state *before* column k is applied. The UI labels show the
+  //   step number to match this semantics. Breakpoint validity
+  //   (0 <= column <= scheduleLength) is enforced by AppController._validBreakpointCol.
   function refreshBreakpoints() {
     if (!breakpointList) return;
     breakpointList.textContent = '';
     for (const bp of app.getBreakpointsWithStatus()) {
       const row = document.createElement('div');
       row.className = 'breakpoint-row' + (bp.active ? ' breakpoint-active' : '');
-      row.textContent = `Column ${bp.column}`;
+      row.textContent = `Step ${bp.column}`;
       breakpointList.appendChild(row);
     }
   }

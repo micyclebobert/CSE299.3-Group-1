@@ -22,13 +22,13 @@ const GATE_DESCRIPTIONS = {
   H: 'Hadamard (creates superposition)',
   S: 'phase gate (adds 90-degree phase)',
   T: 'T gate (adds 45-degree phase)',
-  RX: 'X-axis rotation',
-  RY: 'Y-axis rotation',
-  RZ: 'Z-axis rotation',
+  Rx: 'X-axis rotation',
+  Ry: 'Y-axis rotation',
+  Rz: 'Z-axis rotation',
   CNOT: 'controlled-NOT (entangles two qubits)',
   CZ: 'controlled-Z (conditional phase flip)',
   SWAP: 'swaps two qubit states',
-  TOFFOLI: 'controlled-controlled-NOT (Toffoli)',
+  Toffoli: 'controlled-controlled-NOT (Toffoli)',
 };
 
 /**

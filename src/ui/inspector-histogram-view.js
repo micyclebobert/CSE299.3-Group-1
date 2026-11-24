@@ -4,15 +4,15 @@ const MAX_BARS = 256;
 
 export function initInspectorHistogramView(app, histEl) {
   function renderShots() {
-    const probs = app.probabilities();
-    const labels = app.ketLabels();
-    const total = app.shots;
-    const size = probs.length;
+    const hist = app.sampleShots();
     histEl.innerHTML = '';
-    if (!size) {
+    if (!hist) {
       histEl.textContent = 'No shots sampled.';
       return;
     }
+    const labels = app.ketLabels();
+    const total = app.shots;
+    const size = labels.length;
     const dpr = (typeof window !== 'undefined' && window.devicePixelRatio) || 1;
     const cssW = histEl.clientWidth > 0 ? histEl.clientWidth : 400;
     const cssH = 220;
@@ -20,7 +20,7 @@ export function initInspectorHistogramView(app, histEl) {
     const entries = [];
     let maxCount = 0;
     for (let i = 0; i < size; i += 1) {
-      const count = probs[i] * total;
+      const count = hist.get(i) ?? 0;
       if (count > maxCount) maxCount = count;
       entries.push({ index: i, count, label: labels[i] || `|${i}>` });
     }
@@ -56,7 +56,7 @@ export function initInspectorHistogramView(app, histEl) {
       ctx.font = '10px system-ui';
       ctx.textAlign = 'center';
       ctx.fillText(label, x + barW / 2, cy0 + 14);
-      ctx.fillText(`${Math.round(count)}`, x + barW / 2, cy0 - h - 6);
+      ctx.fillText(`${count}`, x + barW / 2, cy0 - h - 6);
       x += barW + gap;
     };
     for (const e of shown) {
@@ -65,7 +65,7 @@ export function initInspectorHistogramView(app, histEl) {
     ctx.fillStyle = theme.textMuted;
     ctx.font = '11px system-ui';
     ctx.textAlign = 'center';
-    ctx.fillText(`Empirical shot histogram (${total} shots)`, cssW / 2, 18);
+    ctx.fillText(`Shot histogram (${total} shots)`, cssW / 2, 18);
   }
   return { renderShots };
 }

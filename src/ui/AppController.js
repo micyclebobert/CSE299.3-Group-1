@@ -9,6 +9,7 @@ import { encode as _urlEncode, decode as _urlDecode } from '../circuit/URLCodec.
 const URLCodec = { encode: _urlEncode, decode: _urlDecode };
 import { flattenCircuit, scheduleColumns } from '../circuit/Flatten.js';
 import { StepTrace } from '../sim/StepTrace.js';
+import { evaluate as evaluateLimits, MAX_EPHEMERAL_QUBITS } from '../sim/limits.js';
 import { StateVector } from '../core/StateVector.js';
 import { collapse, sampleHistogram } from '../measurement/measurement.js';
 import { gateControlCount, gateNeedsTarget2 } from '../editor/gatePalette.js';
@@ -62,7 +63,23 @@ export class AppController {
     if (this._inspectorCb) this._inspectorCb();
     if (this._codeCb) this._codeCb();
   }
+  refreshDebuggerTimeline() {
+    // Refresh debugger timeline/breakpoint presentation after any circuit
+    // replacement; triggers the DOM layer to re-read controller state.
+    this.notify();
+  }
   get currentCircuit() { return this._currentCircuit; }
+  getStepTrace() { return this._stepTrace; }
+  getQubitLimitStatus(numQubits) {
+    const maxQubits = MAX_EPHEMERAL_QUBITS;
+    const allowed = Number.isInteger(numQubits) && numQubits >= 1 && numQubits <= maxQubits;
+    let advisory = null;
+    if (allowed && numQubits >= 15 && numQubits <= maxQubits) {
+      const policy = evaluateLimits(numQubits);
+      advisory = policy.advisory;
+    }
+    return { allowed, advisory, maxQubits };
+  }
   get numQubits() { return this._currentCircuit ? this._currentCircuit.numQubits : 0; }
   get shots() { return this._shots; }
   get catalog() { return this._catalog; }
@@ -75,11 +92,21 @@ export class AppController {
   get debuggerUI() { return this._debuggerUI; }
   get debugger() { return this._debugger; }
   resetCircuit(numQubits = 2) {
+    const limitStatus = this.getQubitLimitStatus(numQubits);
+    if (!limitStatus.allowed) {
+      this._status(`Qubit count ${numQubits} exceeds browser limit of ${limitStatus.maxQubits}. Circuit not created.`);
+      return;
+    }
     const circuit = new Circuit({ numQubits, columns: [] });
     this._setCircuit(circuit);
-    if (this._AIBuilderUI) this._aiBuilder = new this._AIBuilderUI({ numQubits });
-    if (this._IOAnalyzerUI) this._ioAnalyzer = new this._IOAnalyzerUI({ numQubits });
-    this._status('Ready. Click a palette gate to place it on the canvas.');
+    if (this._AIBuilderUI) this._aiBuilder = new this._AIBuilderUI({ numQubits, cache: this._cache });
+    if (this._IOAnalyzerUI) this._ioAnalyzer = new this._IOAnalyzerUI({ numQubits, cache: this._cache });
+    this._syncAuxQubitCounts(circuit);
+    if (limitStatus.advisory) {
+      this._status(limitStatus.advisory);
+    } else {
+      this._status('Ready. Click a palette gate to place it on the canvas.');
+    }
   }
   _setCircuit(circuit, { record = true } = {}) {
     if (!(circuit instanceof Circuit)) {
@@ -90,7 +117,9 @@ export class AppController {
     const instructions = flattenCircuit(circuit);
     const schedule = scheduleColumns(instructions);
     this._stepTrace = new StepTrace(schedule, circuit.numQubits);
-    this._inspector = new this._Inspector(this._stepTrace);
+    if (this._Inspector) {
+      this._inspector = new this._Inspector(this._stepTrace);
+    }
     if (this._Debugger) {
       this._debugger = new this._Debugger(this._stepTrace);
       this._debuggerUI = new this._DebuggerUI(this._debugger);
@@ -98,7 +127,7 @@ export class AppController {
       previousBreakpoints.forEach((col) => this.addBreakpoint(col));
     }
     if (record) this._history.push(circuit);
-    this.notify();
+    this.refreshDebuggerTimeline();
   }
   encodeURL() {
     return URLCodec.encode(this.serialize());
@@ -113,11 +142,16 @@ export class AppController {
     }
   }
   placeGateAt(column, row, gateName) {
+    const limitStatus = this.getQubitLimitStatus(this.numQubits);
+    if (!limitStatus.allowed) {
+      this._status(`Qubit count ${this.numQubits} exceeds browser limit of ${limitStatus.maxQubits}.`);
+      return { conflict: true, reason: 'qubit limit exceeded' };
+    }
     const entry = this._catalog.find((e) => e.name === gateName);
     if (!entry) return { conflict: true, reason: 'unknown gate' };
     const circuit = this._currentCircuit;
     const n = circuit.numQubits;
-    if (column < 0 || column > circuit.columns.length || row < 0 || row >= n) {
+    if (!Number.isFinite(column) || !Number.isInteger(column) || !Number.isFinite(row) || !Number.isInteger(row) || column < 0 || row < 0 || row >= n) {
       this._status(`Invalid placement coordinates column=${column} row=${row}.`);
       return { conflict: true, reason: 'coordinate out of range' };
     }
@@ -195,20 +229,6 @@ export class AppController {
     window.addEventListener('resize', () => this.draw());
     this.draw();
   }
-  _placeGate(entry, column) {
-    const circuit = this._currentCircuit;
-    const n = circuit.numQubits;
-    let placed = false;
-    for (let row = 0; row < n && !placed; row += 1) {
-      const result = this._tryPlace(entry, column, row);
-      if (!result.conflict) placed = true;
-    }
-    if (!placed) {
-      this._status('No free row in target column.');
-      return;
-    }
-    this._status(`Placed ${entry.name} at column ${column}.`);
-  }
   _tryPlace(entry, column, row) {
     const circuit = this._currentCircuit;
     const n = circuit.numQubits;
@@ -259,10 +279,15 @@ export class AppController {
   }
   applyCircuit(circuit) {
     this._setCircuit(circuit);
+    this._syncAuxQubitCounts(circuit);
     this._status('AI Builder circuit applied to editor.');
   }
   setBuilderNumQubits(numQubits) {
     if (this._aiBuilder) this._aiBuilder.setNumQubits(numQubits);
+  }
+  _syncAuxQubitCounts(circuit) {
+    if (this._aiBuilder) this._aiBuilder.setNumQubits(circuit.numQubits);
+    if (this._ioAnalyzer) this._ioAnalyzer.setNumQubits(circuit.numQubits);
   }
   undo() {
     const prev = this._history.undo();
@@ -364,7 +389,10 @@ export class AppController {
     return out;
   }
   bloch(q) { return this._inspector ? this._inspector.bloch.vector(q) : { x: 0, y: 0, z: 0 }; }
-  setShots(shots) { this._shots = Math.max(1, Math.floor(shots)); }
+  setShots(shots) {
+    if (!Number.isFinite(shots) || shots < 1) { this._status(`Invalid shots value ${shots}. Keeping ${this._shots}.`); return; }
+    this._shots = Math.max(1, Math.floor(shots));
+  }
   sampleShots() {
     if (!this._stepTrace) return null;
     const trace = this._stepTrace;
@@ -383,6 +411,7 @@ export class AppController {
     try {
       const circuit = Serializer.fromJson(json);
       this._setCircuit(circuit);
+      this._syncAuxQubitCounts(circuit);
       this._status('Circuit loaded from JSON.');
       return { ok: true, circuit };
     } catch (err) {

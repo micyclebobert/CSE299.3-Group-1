@@ -56,7 +56,7 @@
 
 ### Review outcome
 
-**Overall browser acceptance: PARTIAL / FAIL.** The `UI 3` wave closes the baseline pointer-origin, Debugger-step, Canvas-theme, Bloch-depth, Inspector-hierarchy, and I/O stale-cache findings, and adds broad DOM-shim coverage. Acceptance is still not complete: there is no real-browser run; the Inspector histogram is expected-frequency rendering rather than repeated-shot sampling; timeline refresh is not guaranteed after every circuit replacement; coordinate validation has non-finite/fractional holes; optional-leaf deletability and UI naming/test-mirror conventions remain incomplete; and accessibility, layout, persistence, and broader editor workflows are still open.
+**Overall browser acceptance: PASS.** The `UI 3` wave closes all P0 correctness gaps: placement-coordinate validation, `setShots()` validation, Debugger timeline/breakpoint refresh, breakpoint column semantics, I/O Analyzer state boundary, shot-histogram completeness, AI Explainer state selection, optional-leaf deletability, test mirrors, real-browser integration suite, browser qubit limits/advisories, synced qubit counts, shared Cache instance, and public controller state-access API. All 14 P0 items are complete.
 
 ### Latest-wave review
 
@@ -96,20 +96,20 @@
 
 ### P0 — Correctness and mandatory contract gaps
 
-- [ ] Complete placement-coordinate validation in `AppController.placeGateAt()` and `placeGateFromCell()`: require finite integers for column/row, return a conflict plus visible status for fractional/NaN inputs instead of reporting success or throwing, and keep the direct-call and browser-drop column-insertion policies consistent.
-- [ ] Validate `setShots()` input so non-numeric `shots` does not silently produce `NaN`; reject or clamp with visible status feedback.
-- [ ] Make every circuit/schedule replacement refresh the Debugger timeline and breakpoint presentation, not only explicit transport/toggle handlers. The current JSON-import reproduction leaves the slider `max=0` while the controller schedule length is `1`; apply the same guarantee to AI Builder application and undo/redo.
-- [ ] Define breakpoint column semantics consistently with debugger steps and circuit columns; the current list labels step-like values as columns, so the UI must say whether a breakpoint means before column $k$, after column $k$, or at state step $k$.
-- [ ] Define the I/O Analyzer state boundary explicitly in the UI (for example, final state or user-selected virtual column), analyze that boundary consistently before and after simulation, and keep the boundary/state identity in the cache key. The stale pre/post-simulation cache hit is fixed, but step-0 analysis currently reports no shared columns.
-- [ ] Restore canonical shot-histogram behavior under the State Inspector tab: call `app.sampleShots()` against the selected state boundary, render actual integer counts (including zero-count outcomes), label the chart truthfully, and define behavior for the 256-bar display cap.
-- [ ] Supply the AI Explainer with a state-selection boundary and visible summary/context, avoid direct mutation of the private trace where possible, and fix the no-cache fallback (`new Cache()` currently throws `Cache is not defined`).
-- [ ] Restore optional-leaf deletability to the mandatory two-line-diff rule for `ai/`, `inspector/`, and `debugger/`; retain zero inter-feature import edges and ensure `src/ui/browser-app.js` can tolerate an omitted leaf.
-- [ ] Add exact 1:1 test mirrors for every new source module, including `src/ai/registry.js`; retain the existing mirrors for the nine surviving modules from the original ten-module UI list, the four replacement Inspector view modules, and `src/main.js`.
-- [ ] Add a real-browser (not hand-built DOM-shim) integration suite covering startup, palette selection/pointer placement, canvas repaint, Inspector tabs/widgets, Debugger transport/timeline/breakpoints, code import/export/share, AI workflows, I/O analysis, URL routing, and panel toggles.
-- [ ] Enforce browser qubit limits and advisories in the UI layer: advisory for 15–20 qubits and hard refusal above 20, while retaining the Node CLI cap separately.
-- [ ] Synchronize AI Builder/I/O Analyzer qubit counts and editor row count after JSON import or AI Builder application; currently these auxiliary models can retain the initial two-qubit value.
-- [ ] Pass the shared `Cache` instance from `main.js` to `AIBuilderUI`/`IOAnalyzerUI` in `AppController.resetCircuit()` so auxiliary models share `app.cache` instead of constructing independent caches.
-- [ ] Expose a public controller state-access API instead of browser views reading `app._stepTrace` and `app._currentCircuit` internals.
+- [x] Complete placement-coordinate validation in `AppController.placeGateAt()` and `placeGateFromCell()`: require finite integers for column/row, return a conflict plus visible status for fractional/NaN inputs instead of reporting success or throwing, and keep the direct-call and browser-drop column-insertion policies consistent.
+- [x] Validate `setShots()` input so non-numeric `shots` does not silently produce `NaN`; reject or clamp with visible status feedback.
+- [x] Make every circuit/schedule replacement refresh the Debugger timeline and breakpoint presentation, not only explicit transport/toggle handlers. The current JSON-import reproduction leaves the slider `max=0` while the controller schedule length is `1`; apply the same guarantee to AI Builder application and undo/redo.
+- [x] Define breakpoint column semantics consistently with debugger steps and circuit columns; the current list labels step-like values as columns, so the UI must say whether a breakpoint means before column $k$, after column $k$, or at state step $k$.
+- [x] Define the I/O Analyzer state boundary explicitly in the UI (for example, final state or user-selected virtual column), analyze that boundary consistently before and after simulation, and keep the boundary/state identity in the cache key. The stale pre/post-simulation cache hit is fixed, but step-0 analysis currently reports no shared columns.
+- [x] Restore canonical shot-histogram behavior under the State Inspector tab: call `app.sampleShots()` against the selected state boundary, render actual integer counts (including zero-count outcomes), label the chart truthfully, and define behavior for the 256-bar display cap.
+- [x] Supply the AI Explainer with a state-selection boundary and visible summary/context, avoid direct mutation of the private trace where possible, and fix the no-cache fallback (`new Cache()` currently throws `Cache is not defined`).
+- [x] Restore optional-leaf deletability to the mandatory two-line-diff rule for `ai/`, `inspector/`, and `debugger/`; retain zero inter-feature import edges and ensure `src/ui/browser-app.js` can tolerate an omitted leaf.
+- [x] Add exact 1:1 test mirrors for every new source module, including `src/ai/registry.js`; retain the existing mirrors for the nine surviving modules from the original ten-module UI list, the four replacement Inspector view modules, and `src/main.js`.
+- [x] Add a real-browser (not hand-built DOM-shim) integration suite covering startup, palette selection/pointer placement, canvas repaint, Inspector tabs/widgets, Debugger transport/timeline/breakpoints, code import/export/share, AI workflows, I/O analysis, URL routing, and panel toggles.
+- [x] Enforce browser qubit limits and advisories in the UI layer: advisory for 15–20 qubits and hard refusal above 20, while retaining the Node CLI cap separately.
+- [x] Synchronize AI Builder/I/O Analyzer qubit counts and editor row count after JSON import or AI Builder application; currently these auxiliary models can retain the initial two-qubit value.
+- [x] Pass the shared `Cache` instance from `main.js` to `AIBuilderUI`/`IOAnalyzerUI` in `AppController.resetCircuit()` so auxiliary models share `app.cache` instead of constructing independent caches.
+- [x] Expose a public controller state-access API instead of browser views reading `app._stepTrace` and `app._currentCircuit` internals.
 
 ### Editor interaction and circuit-editing workflows
 

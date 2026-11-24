@@ -183,11 +183,19 @@ test('invalid coordinates conflict and leave circuit unchanged', () => {
   const { app, statusEl } = buildApp();
 
   strictEqual(app.placeGateAt(-1, 0, 'H').conflict, true);
-  strictEqual(app.placeGateAt(1, 0, 'H').conflict, true);
   strictEqual(app.placeGateAt(0, -1, 'H').conflict, true);
   strictEqual(app.placeGateAt(0, 2, 'H').conflict, true);
-  strictEqual(app.currentCircuit.columns.length, 0);
+  strictEqual(app.currentCircuit.columns.length, 0, 'no column created on invalid coordinates');
   ok(statusEl.textContent.includes('Invalid'));
+});
+
+test('placeGateAt allows gap columns when column exceeds current length', () => {
+  const { app } = buildApp();
+  const result = app.placeGateAt(1, 0, 'H');
+  strictEqual(result.conflict, false, 'gap column placement should not conflict');
+  strictEqual(app.currentCircuit.columns.length, 2, 'gap column + gate column created');
+  strictEqual(app.currentCircuit.columns[0].gates.length, 0, 'column 0 is an empty gap');
+  strictEqual(app.currentCircuit.columns[1].gates[0].name, 'H', 'column 1 holds the gate');
 });
 
 test('CNOT placement via pointer flow allocates control to a non-target row', () => {

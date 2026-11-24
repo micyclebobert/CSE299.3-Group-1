@@ -168,13 +168,70 @@ test('placeGateAt rejects negative column with conflict', () => {
   ok(statusEl.textContent.includes('Invalid'), 'status should report invalid coordinates');
 });
 
-test('placeGateAt rejects column beyond insertion point with conflict', () => {
+test('placeGateAt rejects NaN column with conflict', () => {
   const { app, statusEl } = buildApp();
-  const result = app.placeGateAt(1, 0, 'H');
-  strictEqual(result.conflict, true, 'column beyond insertion point should conflict');
+  const result = app.placeGateAt(NaN, 0, 'H');
+  strictEqual(result.conflict, true, 'NaN column should conflict');
   strictEqual(result.reason, 'coordinate out of range', 'reason should be coordinate out of range');
   strictEqual(app.currentCircuit.columns.length, 0, 'no column created on conflict');
   ok(statusEl.textContent.includes('Invalid'), 'status should report invalid coordinates');
+});
+
+test('placeGateAt rejects Infinity column with conflict', () => {
+  const { app, statusEl } = buildApp();
+  const result = app.placeGateAt(Infinity, 0, 'H');
+  strictEqual(result.conflict, true, 'Infinity column should conflict');
+  strictEqual(result.reason, 'coordinate out of range', 'reason should be coordinate out of range');
+  strictEqual(app.currentCircuit.columns.length, 0, 'no column created on conflict');
+  ok(statusEl.textContent.includes('Invalid'), 'status should report invalid coordinates');
+});
+
+test('placeGateAt rejects fractional column with conflict', () => {
+  const { app, statusEl } = buildApp();
+  const result = app.placeGateAt(0.5, 0, 'H');
+  strictEqual(result.conflict, true, 'fractional column should conflict');
+  strictEqual(result.reason, 'coordinate out of range', 'reason should be coordinate out of range');
+  strictEqual(app.currentCircuit.columns.length, 0, 'no column created on conflict');
+  ok(statusEl.textContent.includes('Invalid'), 'status should report invalid coordinates');
+});
+
+test('placeGateAt rejects NaN row with conflict', () => {
+  const { app, statusEl } = buildApp();
+  const result = app.placeGateAt(0, NaN, 'H');
+  strictEqual(result.conflict, true, 'NaN row should conflict');
+  strictEqual(result.reason, 'coordinate out of range', 'reason should be coordinate out of range');
+  strictEqual(app.currentCircuit.columns.length, 0, 'no column created on conflict');
+  ok(statusEl.textContent.includes('Invalid'), 'status should report invalid coordinates');
+});
+
+test('placeGateAt rejects Infinity row with conflict', () => {
+  const { app, statusEl } = buildApp();
+  const result = app.placeGateAt(0, Infinity, 'H');
+  strictEqual(result.conflict, true, 'Infinity row should conflict');
+  strictEqual(result.reason, 'coordinate out of range', 'reason should be coordinate out of range');
+  strictEqual(app.currentCircuit.columns.length, 0, 'no column created on conflict');
+  ok(statusEl.textContent.includes('Invalid'), 'status should report invalid coordinates');
+});
+
+test('placeGateAt rejects fractional row with conflict', () => {
+  const { app, statusEl } = buildApp();
+  const result = app.placeGateAt(0, 1.5, 'H');
+  strictEqual(result.conflict, true, 'fractional row should conflict');
+  strictEqual(result.reason, 'coordinate out of range', 'reason should be coordinate out of range');
+  strictEqual(app.currentCircuit.columns.length, 0, 'no column created on conflict');
+  ok(statusEl.textContent.includes('Invalid'), 'status should report invalid coordinates');
+});
+
+test('placeGateAt allows gap columns when column exceeds current length', () => {
+  const { app } = buildApp();
+  const result = app.placeGateAt(2, 0, 'H');
+  strictEqual(result.conflict, false, 'gap column placement should not conflict');
+  const circuit = app.currentCircuit;
+  strictEqual(circuit.columns.length, 3, 'three columns created (two gaps + gate)');
+  strictEqual(circuit.columns[0].gates.length, 0, 'column 0 is an empty gap');
+  strictEqual(circuit.columns[1].gates.length, 0, 'column 1 is an empty gap');
+  strictEqual(circuit.columns[2].gates[0].name, 'H', 'column 2 holds the gate');
+  strictEqual(circuit.columns[2].gates[0].target, 0, 'gate targets row 0');
 });
 
 test('placeGateAt rejects negative row with conflict', () => {
@@ -515,5 +572,47 @@ test('clearAllBreakpoints clears all breakpoints', () => {
   strictEqual(app.getBreakpoints().length, 0);
   strictEqual(app.hasBreakpoint(0), false);
   strictEqual(app.hasBreakpoint(1), false);
+});
+
+test('setShots rejects NaN and keeps current value', () => {
+  const { app, statusEl } = buildApp();
+  app.setShots(NaN);
+  strictEqual(app.shots, 1024, 'shots should remain 1024 after NaN');
+  ok(statusEl.textContent.includes('Invalid'), 'status should report invalid shots');
+});
+
+test('setShots rejects Infinity and keeps current value', () => {
+  const { app, statusEl } = buildApp();
+  app.setShots(Infinity);
+  strictEqual(app.shots, 1024, 'shots should remain 1024 after Infinity');
+  ok(statusEl.textContent.includes('Invalid'), 'status should report invalid shots');
+});
+
+test('setShots rejects zero and keeps current value', () => {
+  const { app, statusEl } = buildApp();
+  app.setShots(0);
+  strictEqual(app.shots, 1024, 'shots should remain 1024 after zero');
+  ok(statusEl.textContent.includes('Invalid'), 'status should report invalid shots');
+});
+
+test('setShots rejects negative and keeps current value', () => {
+  const { app, statusEl } = buildApp();
+  app.setShots(-5);
+  strictEqual(app.shots, 1024, 'shots should remain 1024 after negative');
+  ok(statusEl.textContent.includes('Invalid'), 'status should report invalid shots');
+});
+
+test('setShots floors fractional shots and sets valid value', () => {
+  const { app } = buildApp();
+  app.setShots(2.7);
+  strictEqual(app.shots, 2, 'shots should be floored to 2');
+  app.setShots(200);
+  strictEqual(app.shots, 200, 'shots should be set to 200');
+});
+
+test('setShots clamps to minimum of 1', () => {
+  const { app } = buildApp();
+  app.setShots(1);
+  strictEqual(app.shots, 1, 'shots should be 1');
 });
 

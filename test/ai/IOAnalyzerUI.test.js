@@ -1,6 +1,5 @@
 // =============================================================================
 // test/ai/IOAnalyzerUI.test.js
-// -----------------------------------------------------------------------------
 // Unit tests for src/ai/IOAnalyzerUI.js. No DOM, no network, no LLM. Mocks
 // StepTrace and state vector facade. Runs via node --test.
 // =============================================================================
@@ -171,6 +170,8 @@ describe('IOAnalyzerUI', () => {
       inputRows: [],
       outputRows: [],
       numQubits: 3,
+      stateBoundary: 'final',
+      selectedStep: null,
       analysis: null,
       sparse: null,
       status: 'idle',
@@ -211,10 +212,10 @@ describe('IOAnalyzerUI', () => {
     ui.setInputRows([0]);
     ui.setOutputRows([0, 1]);
     const preStep = { step: 0, getChangedSteps() { return []; } };
-    const postStep = { step: 3, getChangedSteps() { return []; } };
-    ui.analyze(bellInstructions, preStep);
+    const postStep = { step: 2, getChangedSteps() { return []; } };
+    ui.analyze(bellInstructions, preStep, { stateBoundary: 'step' });
     const preKey = ui.cacheKey;
-    ui.analyze(bellInstructions, postStep);
+    ui.analyze(bellInstructions, postStep, { stateBoundary: 'step' });
     const postKey = ui.cacheKey;
     assert.notEqual(preKey, postKey);
     assert.equal(ui.cacheKey, postKey);
@@ -243,17 +244,14 @@ describe('IOAnalyzerUI', () => {
     ui.setOutputRows([0, 1]);
     const preSim = { step: 0, getChangedSteps() { return []; } };
     const postSim = { step: 2, getChangedSteps() { return [1, 2]; } };
-    ui.analyze(bellInstructions, preSim);
+    ui.analyze(bellInstructions, preSim, { stateBoundary: 'step' });
     assert.equal(ui.cacheHit, false);
     const preKey = ui.cacheKey;
-    ui.analyze(bellInstructions, postSim);
+    ui.analyze(bellInstructions, postSim, { stateBoundary: 'step' });
     assert.equal(ui.cacheHit, false);
     const postKey = ui.cacheKey;
     assert.notEqual(preKey, postKey);
-    // Serving pre-simulation cache after simulation must not happen: the
-    // pre-simulation entry is keyed under step=0, so re-querying with step=0
-    // hits it, while step=2 does not.
-    ui.analyze(bellInstructions, preSim);
+    ui.analyze(bellInstructions, preSim, { stateBoundary: 'step' });
     assert.equal(ui.cacheHit, true);
     assert.equal(hits.length, 1);
     assert.equal(hits[0], preKey);
@@ -267,8 +265,111 @@ describe('IOAnalyzerUI', () => {
     assert.equal(ui.cacheHit, false);
     assert.match(ui.cacheKey, /^[0-9a-f]{64}$/);
   });
+
   it('non-array instructions throw TypeError', () => {
     const ui = new IOAnalyzerUI();
     assert.throws(() => ui.analyze('not an array', {}), TypeError);
+  });
+
+  // ---- state boundary tests -------------------------------------------------
+
+  it('default state boundary is final', () => {
+    const ui = new IOAnalyzerUI({ numQubits: 2 });
+    assert.equal(ui.stateBoundary, 'final');
+    const info = ui.getBoundaryInfo();
+    assert.deepEqual(info, { boundary: 'final', step: null, isFinal: true });
+  });
+
+  it('setStateBoundary changes boundary', () => {
+    const ui = new IOAnalyzerUI({ numQubits: 2 });
+    ui.setStateBoundary('step');
+    assert.equal(ui.stateBoundary, 'step');
+    const info = ui.getBoundaryInfo();
+    assert.deepEqual(info, { boundary: 'step', step: null, isFinal: false });
+  });
+
+  it('setStateBoundary with invalid value throws', () => {
+    const ui = new IOAnalyzerUI({ numQubits: 2 });
+    assert.throws(() => ui.setStateBoundary('invalid'), RangeError);
+    assert.throws(() => ui.setStateBoundary(null), RangeError);
+    assert.throws(() => ui.setStateBoundary(42), RangeError);
+    assert.equal(ui.stateBoundary, 'final');
+  });
+
+  it('cache key differs between final and step boundaries', () => {
+    const ui = new IOAnalyzerUI({ numQubits: 2 });
+    ui.setInputRows([0]);
+    ui.setOutputRows([0, 1]);
+    const stepTrace = { step: 2, getChangedSteps() { return [1, 2]; }, scheduleLength: 2 };
+    ui.analyze(bellInstructions, stepTrace);
+    const finalKey = ui.cacheKey;
+    ui.setStateBoundary('step');
+    ui.setSelectedStep(2, 2);
+    ui.analyze(bellInstructions, stepTrace);
+    const stepKey = ui.cacheKey;
+    assert.notEqual(finalKey, stepKey);
+  });
+
+  it('setSelectedStep validates against schedule length', () => {
+    const ui = new IOAnalyzerUI({ numQubits: 2 });
+    ui.setSelectedStep(1, 3);
+    const info = ui.getBoundaryInfo();
+    assert.deepEqual(info, { boundary: 'step', step: 1, isFinal: false });
+    assert.throws(() => ui.setSelectedStep(5, 3), RangeError);
+    assert.throws(() => ui.setSelectedStep(-1, 3), RangeError);
+    assert.throws(() => ui.setSelectedStep(1.5, 3), RangeError);
+  });
+
+  it('getBoundaryInfo returns correct info for final', () => {
+    const ui = new IOAnalyzerUI({ numQubits: 2 });
+    assert.deepEqual(ui.getBoundaryInfo(), { boundary: 'final', step: null, isFinal: true });
+    ui.setStateBoundary('step');
+    ui.setSelectedStep(0, 2);
+    assert.deepEqual(ui.getBoundaryInfo(), { boundary: 'step', step: 0, isFinal: false });
+  });
+
+  it('setNumQubits resets boundary to default', () => {
+    const ui = new IOAnalyzerUI({ numQubits: 2 });
+    ui.setStateBoundary('step');
+    ui.setSelectedStep(1, 3);
+    assert.equal(ui.stateBoundary, 'step');
+    ui.setNumQubits(3);
+    assert.equal(ui.stateBoundary, 'final');
+    assert.deepEqual(ui.getBoundaryInfo(), { boundary: 'final', step: null, isFinal: true });
+  });
+
+  it('reset resets boundary to final', () => {
+    const ui = new IOAnalyzerUI({ numQubits: 2 });
+    ui.setStateBoundary('step');
+    ui.setSelectedStep(1, 3);
+    ui.reset();
+    assert.deepEqual(ui.getBoundaryInfo(), { boundary: 'final', step: null, isFinal: true });
+    assert.equal(ui.numQubits, 2);
+    assert.deepEqual(ui.inputRows, []);
+    assert.deepEqual(ui.outputRows, []);
+  });
+
+  it('analyze with final boundary uses all columns even at step 0', () => {
+    const ui = new IOAnalyzerUI({ numQubits: 2 });
+    ui.setInputRows([0]);
+    ui.setOutputRows([0, 1]);
+    const stepTrace = { step: 0, getChangedSteps() { return []; }, scheduleLength: 2 };
+    const result = ui.analyze(bellInstructions, stepTrace);
+    assert.equal(result.status, 'ok');
+    assert.equal(result.analysis.touchedColumns.length, 2);
+  });
+
+  it('analyze options.stateBoundary overrides instance boundary', () => {
+    const ui = new IOAnalyzerUI({ numQubits: 2 });
+    ui.setStateBoundary('final');
+    ui.setInputRows([0]);
+    ui.setOutputRows([0, 1]);
+    const stepTrace = { step: 0, getChangedSteps() { return []; }, scheduleLength: 2 };
+    ui.analyze(bellInstructions, stepTrace, { stateBoundary: 'step' });
+    assert.equal(ui.stateBoundary, 'final');
+    const stepKey = ui.cacheKey;
+    ui.analyze(bellInstructions, stepTrace);
+    const finalKey = ui.cacheKey;
+    assert.notEqual(stepKey, finalKey);
   });
 });

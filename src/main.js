@@ -96,10 +96,13 @@ import { Debugger } from './debugger/Debugger.js';
 import { Inspector } from './inspector/Inspector.js';
 import { InspectorUI } from './inspector/InspectorUI.js';
 
-// ai/ (2 lines)
+// ai/ (1 line via registry.js)
 import { AIExplainer, IOAnalyzer, AIBuilder, SparseSummary, AIBuilderUI, IOAnalyzerUI, Cache } from './ai/registry.js';
 
-const cache = new Cache();
+let cache = null;
+if (typeof Cache !== 'undefined') {
+  cache = new Cache();
+}
 
 // ---------------------------------------------------------------------------
 // Application entry point (browser / CLI wiring would go here).
