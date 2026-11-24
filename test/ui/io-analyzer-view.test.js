@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import { strictEqual, ok } from 'assert';
 import { initIOAnalyzerView } from '../../src/ui/io-analyzer-view.js';
+import { Circuit } from '../../src/circuit/Circuit.js';
 
 function makeElement() {
   const listeners = new Map();
@@ -41,8 +42,11 @@ globalThis.document = {
 function buildApp({ ioAnalyzer } = {}) {
   const app = {
     ioAnalyzer,
-    currentCircuit: { columns: [], numQubits: 2 },
+    currentCircuit: new Circuit({ numQubits: 2, columns: [] }),
     _stepTrace: {},
+    numQubits: 2,
+    getStepTrace() { return this._stepTrace; },
+    setStatus() {},
   };
   return app;
 }
@@ -83,4 +87,28 @@ test('initIOAnalyzerView disables analyzer when ioAnalyzer is absent', () => {
   const btnAnalyze = globalThis.document.getElementById('btn-analyze');
   strictEqual(btnAnalyze.disabled, true, 'btn-analyze disabled when no ioAnalyzer');
   strictEqual(ioOutput.textContent, 'I/O Analyzer unavailable.', 'unavailable message shown');
+});
+
+test('analyze click passes boundary and step options to ioAnalyzer', () => {
+  elements.clear();
+  let capturedOptions = null;
+  const ioAnalyzer = {
+    onChange() {},
+    setInputRows() {},
+    setOutputRows() {},
+    analyze(_instrs, _trace, options) { capturedOptions = options; return { status: 'ok' }; },
+  };
+  const app = buildApp({ ioAnalyzer });
+  const ioOutput = makeElement();
+  const ioInputRow = makeElement();
+  const ioOutputRow = makeElement();
+  ioInputRow.value = '0';
+  ioOutputRow.value = '0';
+  initIOAnalyzerView(app, ioInputRow, ioOutputRow, ioOutput);
+  const btn = globalThis.document.getElementById('btn-analyze');
+  btn.listeners.get('click')[0]();
+  strictEqual(capturedOptions.numQubits, 2, 'numQubits forwarded');
+  strictEqual(capturedOptions.selectedStep, null, 'selectedStep null for final boundary');
+  ok('stateBoundary' in capturedOptions, 'stateBoundary forwarded');
+  ok('state' in capturedOptions, 'state forwarded');
 });

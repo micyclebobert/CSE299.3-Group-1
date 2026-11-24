@@ -76,7 +76,7 @@ test('cache fallback does not throw Cache is not defined when no cache provided'
     }
   }
 
-  // No cache argument; app has no cache -> must fall back to new Cache().
+  // No cache argument; app has no cache -> options.cache is null (no-cache fallback).
   initAIExplainerView(app, aiOutput, MockAIExplainer, SparseSummary);
 
   const clickListeners = aiOutput.listeners.get('click');
@@ -86,12 +86,32 @@ test('cache fallback does not throw Cache is not defined when no cache provided'
   await clickListeners[0]();
 
   ok(explainCalled, 'AIExplainer.explain was called');
-  ok(explainCalled.options.cache, 'cache fallback provided');
-  strictEqual(
-    explainCalled.options.cache instanceof Cache,
-    true,
-    'cache fallback is a Cache instance',
-  );
+  strictEqual(explainCalled.options.cache, null, 'no cache injected; no-cache fallback used');
+});
+
+test('no direct Cache import edge; uses injected app.cache only', async () => {
+  const { app } = buildApp();
+  const aiOutput = makeElement();
+  globalThis.document.getElementById = () => aiOutput;
+
+  let explainCalled = null;
+  class MockAIExplainer {
+    async explain(instructions, summaries, numQubits, options) {
+      explainCalled = { instructions, summaries, numQubits, options };
+      return 'explanation text';
+    }
+  }
+
+  // No cache argument; app has no cache -> options.cache is null (no-cache fallback).
+  initAIExplainerView(app, aiOutput, MockAIExplainer, SparseSummary);
+  const clickListeners = aiOutput.listeners.get('click');
+  ok(clickListeners && clickListeners.length > 0, 'click listener registered');
+
+  app.placeGateAt(0, 0, 'H');
+  await clickListeners[0]();
+
+  ok(explainCalled, 'AIExplainer.explain was called');
+  strictEqual(explainCalled.options.cache, null, 'no direct Cache; options.cache null when none injected');
 });
 
 test('state boundary selection produces one summary per boundary', async () => {
@@ -115,16 +135,19 @@ test('state boundary selection produces one summary per boundary', async () => {
 
   const clickListeners = aiOutput.listeners.get('click');
 
-  // Default boundary is 'final' -> one summary.
+  // Default boundary is 'final' -> one summary per virtual column.
   await clickListeners[0]();
   ok(explainCalled, 'explain called');
-  strictEqual(explainCalled.summaries.length, 1, 'one summary for final boundary');
+  strictEqual(explainCalled.summaries.length, 2, 'one summary per virtual column for final boundary');
+  ok(explainCalled.summaries[0], 'summary present at virtual column 0');
+  ok(explainCalled.summaries[1], 'summary present at virtual column 1');
 
-  // Select step boundary -> one summary at that step.
+  // Select step boundary -> one summary per virtual column at that step.
   explainCalled = null;
   view.setStateBoundary('step', 0);
   await clickListeners[0]();
-  strictEqual(explainCalled.summaries.length, 1, 'one summary for step boundary');
+  strictEqual(explainCalled.summaries.length, 2, 'one summary per virtual column for step boundary');
+  ok(explainCalled.summaries[0], 'summary present at virtual column 0');
 });
 
 test('gate description keys match registered IDs in template fallback', async () => {
@@ -168,6 +191,7 @@ test('context summary info is included in output', async () => {
   ok(aiOutput.textContent.startsWith('Context sent:'), 'output begins with Context sent section');
   ok(aiOutput.textContent.includes('boundary=final'), 'boundary included');
   ok(aiOutput.textContent.includes('summaries=1'), 'summary count included');
+  ok(aiOutput.textContent.includes('vc=0:'), 'top-k labels shown per virtual column');
   ok(aiOutput.textContent.includes('explanation text'), 'explanation appended');
 });
 

@@ -3,6 +3,7 @@ import { flattenCircuit } from '../circuit/Flatten.js';
 export function initIOAnalyzerView(app, ioInputRow, ioOutputRow, ioOutput) {
   ioOutput.style.whiteSpace = 'pre-wrap';
   const ioAnalyzer = app.ioAnalyzer;
+  const section = ioOutput.parentElement;
   if (ioAnalyzer) {
     ioAnalyzer.onChange((s) => {
       if (s.status === 'error') ioOutput.textContent = 'Error: ' + (s.error || '');
@@ -17,12 +18,57 @@ export function initIOAnalyzerView(app, ioInputRow, ioOutputRow, ioOutput) {
         ioOutput.innerHTML = html;
       } else ioOutput.textContent = '';
     });
+
+    // Boundary selector: final state vs a selected virtual step.
+    const boundarySelect = document.createElement('select');
+    boundarySelect.id = 'io-state-boundary';
+    const finalOpt = document.createElement('option');
+    finalOpt.value = 'final';
+    finalOpt.textContent = 'Final state';
+    const stepOpt = document.createElement('option');
+    stepOpt.value = 'step';
+    stepOpt.textContent = 'Virtual step';
+    boundarySelect.appendChild(finalOpt);
+    boundarySelect.appendChild(stepOpt);
+    const stepLabel = document.createElement('span');
+    stepLabel.textContent = ' step:';
+    stepLabel.style.marginLeft = '6px';
+    const stepInput = document.createElement('input');
+    stepInput.id = 'io-selected-step';
+    stepInput.type = 'number';
+    stepInput.min = '0';
+    stepInput.value = '0';
+    stepInput.style.width = '60px';
+    stepInput.style.marginLeft = '6px';
+    if (section) {
+      section.appendChild(boundarySelect);
+      section.appendChild(stepLabel);
+      section.appendChild(stepInput);
+    }
+
     document.getElementById('btn-analyze').addEventListener('click', async () => {
       const inputRow = parseInt(ioInputRow.value, 10) || 0;
       const outputRow = parseInt(ioOutputRow.value, 10) || 0;
+      const stateBoundary = boundarySelect.value;
+      const selectedStep = stateBoundary === 'step' ? (parseInt(stepInput.value, 10) || 0) : null;
       ioAnalyzer.setInputRows([inputRow]);
       ioAnalyzer.setOutputRows([outputRow]);
-      ioAnalyzer.analyze(flattenCircuit(app.currentCircuit), app._stepTrace, { state: app._stepTrace.currentState, numQubits: app.numQubits });
+      const stepTrace = app.getStepTrace();
+      const result = ioAnalyzer.analyze(
+        flattenCircuit(app.currentCircuit),
+        stepTrace,
+        {
+          state: stepTrace && typeof stepTrace.currentState === 'function' ? stepTrace.currentState() : undefined,
+          numQubits: app.numQubits,
+          stateBoundary,
+          selectedStep,
+        }
+      ) || {};
+      if (result.status === 'error') {
+        app.setStatus(`Analysis error: ${result.error || ''}`);
+      } else {
+        app.setStatus('Analysis complete.');
+      }
     });
   } else {
     document.getElementById('btn-analyze').disabled = true;

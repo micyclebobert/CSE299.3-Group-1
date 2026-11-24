@@ -105,4 +105,20 @@ describe('IOAnalyzer', () => {
     assert.deepEqual(analysis.inputAffectedColumns, []);
     assert.deepEqual(analysis.outputAffectedColumns, []);
   });
+
+  it('enrichWithLLM passes instructions to the explainer', async () => {
+    let receivedInstructions = null;
+    const explainer = {
+      explain: async (instructions, _summaries, _numQubits) => {
+        receivedInstructions = instructions;
+        return 'explained';
+      },
+    };
+    const analysis = { summary: 's', causalChain: [] };
+    const result = await IOAnalyzer.enrichWithLLM(
+      explainer, bellInstructions, analysis, [], 2
+    );
+    assert.strictEqual(result, 'explained');
+    assert.deepStrictEqual(receivedInstructions, bellInstructions);
+  });
 });

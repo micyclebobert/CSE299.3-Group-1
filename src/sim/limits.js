@@ -11,11 +11,23 @@
 //   evaluate(n)          -> { mode, advisory, numQubits }
 //                           mode: 'dense' | 'ephemeral'
 //                           advisory: string | null (15 <= n <= 20)
+//   isAllowed(n)         -> boolean (never throws; pre-allocation guard)
 // =============================================================================
 
 export const MAX_DENSE_QUBITS = 12;
 export const MAX_EPHEMERAL_QUBITS = 20;
 export const HARD_CLI_CAP = 24;
+
+/**
+ * Return true when n is a positive integer within the hard CLI cap, false
+ * otherwise. Never throws — safe for pre-allocation guards.
+ *
+ * @param {number} n - qubit count
+ * @returns {boolean}
+ */
+export function isAllowed(n) {
+  return Number.isInteger(n) && n >= 1 && n <= HARD_CLI_CAP;
+}
 
 /**
  * Evaluate qubit-count policy. Returns the StepTrace storage mode and an

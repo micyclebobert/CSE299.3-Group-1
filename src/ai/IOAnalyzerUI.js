@@ -102,6 +102,7 @@ export class IOAnalyzerUI {
   get error() { return this.#error; }
   get cacheHit() { return this.#cacheHit; }
   get cacheKey() { return this.#cacheKey; }
+  get cache() { return this.#cache; }
 
   getStateSnapshot() {
     return {
@@ -210,14 +211,16 @@ export class IOAnalyzerUI {
     let stateIdentity;
     let effectiveStepTrace;
 
+    const traceStep = stepTrace && typeof stepTrace.step === 'number' ? stepTrace.step : 0;
+
     if (boundary === BOUNDARY_FINAL) {
       step = scheduleLength;
-      stateIdentity = 'final';
+      stateIdentity = `final@step=${traceStep}`;
       effectiveStepTrace = this.#makeFinalStepTrace(scheduleLength);
     } else {
       step = this.#selectedStep !== null
         ? this.#selectedStep
-        : (stepTrace && typeof stepTrace.step === 'number' ? stepTrace.step : 0);
+        : traceStep;
       if (step > scheduleLength) {
         this.#setError(`step ${step} exceeds schedule length ${scheduleLength}`);
         this.#notifyChange();
@@ -288,7 +291,7 @@ export class IOAnalyzerUI {
     this.#error = null;
   }
 
-  clearCache() { this.#cache = new Cache(); }
+  clearCache() { this.#cache.clear(); }
 
   reset() {
     this.#inputRows = [];

@@ -11,6 +11,7 @@ import {
   MAX_EPHEMERAL_QUBITS,
   HARD_CLI_CAP,
   evaluate,
+  isAllowed,
 } from '../../src/sim/limits.js';
 
 // ---------------------------------------------------------------------------
@@ -27,6 +28,58 @@ test('limits exports MAX_EPHEMERAL_QUBITS = 20', () => {
 
 test('limits exports HARD_CLI_CAP = 24', () => {
   strictEqual(HARD_CLI_CAP, 24);
+});
+
+// ---------------------------------------------------------------------------
+// isAllowed() — never-throws pre-allocation guard
+// ---------------------------------------------------------------------------
+
+test('isAllowed(1) is true', () => {
+  strictEqual(isAllowed(1), true);
+});
+
+test('isAllowed(12) is true', () => {
+  strictEqual(isAllowed(12), true);
+});
+
+test('isAllowed(15) is true (advisory range)', () => {
+  strictEqual(isAllowed(15), true);
+});
+
+test('isAllowed(20) is true (ephemeral boundary)', () => {
+  strictEqual(isAllowed(20), true);
+});
+
+test('isAllowed(24) is true (hard cap boundary)', () => {
+  strictEqual(isAllowed(24), true);
+});
+
+test('isAllowed(25) is false (above hard cap)', () => {
+  strictEqual(isAllowed(25), false);
+});
+
+test('isAllowed(100) is false', () => {
+  strictEqual(isAllowed(100), false);
+});
+
+test('isAllowed(0) is false', () => {
+  strictEqual(isAllowed(0), false);
+});
+
+test('isAllowed(-1) is false', () => {
+  strictEqual(isAllowed(-1), false);
+});
+
+test('isAllowed(3.5) is false (non-integer)', () => {
+  strictEqual(isAllowed(3.5), false);
+});
+
+test('isAllowed("abc") is false (non-number)', () => {
+  strictEqual(isAllowed('abc'), false);
+});
+
+test('isAllowed(undefined) is false', () => {
+  strictEqual(isAllowed(undefined), false);
 });
 
 // ---------------------------------------------------------------------------

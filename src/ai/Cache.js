@@ -193,6 +193,14 @@ export class Cache {
   }
 
   /**
+   * Remove all entries from this cache instance while preserving its identity.
+   * Callers holding a reference to this Cache see the same instance after clear.
+   */
+  clear() {
+    this.#store.clear();
+  }
+
+  /**
    * Compute the content-addressed cache key for an explanation.
    * @param {string} canonicalJson
    * @param {string} [schemaVersion]

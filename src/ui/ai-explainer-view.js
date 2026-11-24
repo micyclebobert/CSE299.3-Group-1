@@ -1,5 +1,4 @@
 import { flattenCircuit } from '../circuit/Flatten.js';
-import { Cache } from '../ai/Cache.js';
 
 function uniqueVirtualColumns(instructions) {
   const columns = [];
@@ -15,24 +14,35 @@ function uniqueVirtualColumns(instructions) {
   return columns;
 }
 
-function summarizeAtBoundary(app, sparseSummary, boundary) {
+function summarizeAtBoundary(app, sparseSummary, boundary, vcs) {
   const trace = app.getStepTrace();
   if (!trace) return [];
-  const priorStep = trace.step;
-  try {
-    if (boundary.kind === 'final') {
-      trace.seek(trace.scheduleLength);
-    } else {
-      const step = Math.max(0, Math.min(boundary.step, trace.scheduleLength));
-      trace.seek(step);
-    }
-    return [sparseSummary.summarize(trace.currentState)];
-  } finally {
-    trace.seek(priorStep);
+  const scheduleLength = trace.scheduleLength;
+
+  let targetStep;
+  if (boundary.kind === 'final') {
+    targetStep = scheduleLength;
+  } else if (boundary.kind === 'step') {
+    targetStep = Math.max(0, Math.min(Number.isFinite(boundary.step) ? boundary.step : 0, scheduleLength));
+  } else {
+    throw new TypeError(`Unknown state boundary: ${boundary.kind}`);
   }
+
+  // One sparse Top-k summary per virtual column, indexed by virtualColumn.
+  // getStateAtStep seeks then restores the trace position in its finally block,
+  // so the trace is never permanently mutated.
+  const summaries = [];
+  for (const vc of vcs) {
+    const state = app.getStateAtStep(Math.min(vc, targetStep));
+    if (!state) continue;
+    summaries[vc] = sparseSummary.summarize(state);
+  }
+  return summaries;
 }
 
 export function initAIExplainerView(app, aiOutput, AIExplainer, sparseSummary, cache) {
+  aiOutput.style.whiteSpace = 'pre-wrap';
+
   // Closure-scoped (not module-level) state boundary selection.
   let stateBoundary = { kind: 'final' };
 
@@ -46,6 +56,40 @@ export function initAIExplainerView(app, aiOutput, AIExplainer, sparseSummary, c
     }
   }
 
+  // Browser boundary selector: final state vs a selected virtual step.
+  const boundarySelect = document.createElement('select');
+  boundarySelect.id = 'ai-state-boundary';
+  const finalOpt = document.createElement('option');
+  finalOpt.value = 'final';
+  finalOpt.textContent = 'Final state';
+  const stepOpt = document.createElement('option');
+  stepOpt.value = 'step';
+  stepOpt.textContent = 'Virtual step';
+  boundarySelect.appendChild(finalOpt);
+  boundarySelect.appendChild(stepOpt);
+  const stepLabel = document.createElement('span');
+  stepLabel.textContent = ' step:';
+  stepLabel.style.marginLeft = '6px';
+  const stepInput = document.createElement('input');
+  stepInput.id = 'ai-selected-step';
+  stepInput.type = 'number';
+  stepInput.min = '0';
+  stepInput.value = '0';
+  stepInput.style.width = '60px';
+  stepInput.style.marginLeft = '6px';
+
+  const section = aiOutput.parentElement;
+  if (section) {
+    section.insertBefore(boundarySelect, aiOutput);
+    section.insertBefore(stepLabel, aiOutput);
+    section.insertBefore(stepInput, aiOutput);
+  }
+
+  boundarySelect.addEventListener('change', () => {
+    const step = stepInput.value === '' ? 0 : parseInt(stepInput.value, 10) || 0;
+    setStateBoundary(boundarySelect.value || 'final', step);
+  });
+
   let explainer = null;
 
   document.getElementById('btn-explain').addEventListener('click', async () => {
@@ -58,25 +102,31 @@ export function initAIExplainerView(app, aiOutput, AIExplainer, sparseSummary, c
       }
       if (!explainer) explainer = new AIExplainer();
 
-      const summaries = summarizeAtBoundary(app, sparseSummary, stateBoundary);
+      const vcs = uniqueVirtualColumns(instructions);
+      const summaries = summarizeAtBoundary(app, sparseSummary, stateBoundary, vcs);
 
       const canonicalJson = app.serialize();
       const stateIdentity = JSON.stringify({
         boundary: stateBoundary,
-        virtualColumns: uniqueVirtualColumns(instructions),
+        virtualColumns: vcs,
       });
       const text = await explainer.explain(instructions, summaries, app.numQubits, {
-        cache: cache || app.cache || new Cache(),
+        cache: cache || app.cache,
         canonicalJson,
         stateIdentity,
       });
 
+      const topKByColumn = vcs.map((vc) => {
+        const s = summaries[vc];
+        return s ? `vc=${vc}: ${s.topK.map((t) => t.label).join(', ')}` : `vc=${vc}: (none)`;
+      });
       const contextBlock =
         'Context sent:\n'
         + `  boundary=${stateBoundary.kind}${
             stateBoundary.kind === 'step' ? ` step=${stateBoundary.step}` : ''
           }\n`
-        + `  summaries=${summaries.length}\n\n`;
+        + `  summaries=${vcs.length}\n`
+        + `  top-k: ${topKByColumn.join('; ')}\n\n`;
       aiOutput.textContent = contextBlock + text;
     } catch (err) {
       aiOutput.textContent = 'AI unavailable: ' + err.message;

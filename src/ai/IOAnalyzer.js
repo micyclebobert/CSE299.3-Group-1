@@ -145,7 +145,7 @@ function analyzeIO(instructions, inputRows, outputRows, stepTrace) {
  * @param {number} numQubits
  * @returns {Promise<string>}
  */
-async function enrichWithLLM(explainer, analysis, summaries, numQubits) {
+async function enrichWithLLM(explainer, instructions, analysis, summaries, numQubits) {
   const lines = [];
   lines.push('Explain the causal input/output flow of this quantum circuit:');
   lines.push(analysis.summary);
@@ -153,7 +153,7 @@ async function enrichWithLLM(explainer, analysis, summaries, numQubits) {
   for (const step of analysis.causalChain) {
     lines.push(`- ${step}`);
   }
-  return explainer.explain([], summaries, numQubits);
+  return explainer.explain(instructions, summaries, numQubits);
 }
 
 /**
@@ -180,7 +180,7 @@ export class IOAnalyzer {
    * @param {number} numQubits
    * @returns {Promise<string>}
    */
-  static enrichWithLLM(explainer, analysis, summaries, numQubits) {
-    return enrichWithLLM(explainer, analysis, summaries, numQubits);
+  static enrichWithLLM(explainer, instructions, analysis, summaries, numQubits) {
+    return enrichWithLLM(explainer, instructions, analysis, summaries, numQubits);
   }
 }

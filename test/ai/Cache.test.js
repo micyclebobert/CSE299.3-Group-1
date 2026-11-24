@@ -64,4 +64,18 @@ describe('Cache store', () => {
     a.set('k1', 'a-only');
     assert.equal(b.has('k1'), false);
   });
+  it("clear preserves instance identity and removes all entries", () => {
+    const cache = new Cache();
+    cache.set("k1", "v1");
+    cache.set("k2", "v2");
+    assert.equal(cache.has("k1"), true);
+    cache.clear();
+    assert.equal(cache.has("k1"), false, "entries removed after clear");
+    assert.equal(cache.has("k2"), false, "entries removed after clear");
+    assert.equal(cache.get("k1"), undefined);
+    assert.equal(cache.get("k2"), undefined);
+    const cache2 = new Cache();
+    cache2.clear();
+    assert.equal(cache2.has("k1"), false, "clear on empty cache is safe");
+  });
 });

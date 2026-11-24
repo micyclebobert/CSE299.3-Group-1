@@ -1,12 +1,16 @@
-export function initInspectorTabsView(app, tabStripEl, inspectorContentEl, { renderState, renderBloch }) {
+export function initInspectorTabsView(app, tabStripEl, inspectorContentEl, { renderState, renderBloch, renderHistogram }) {
   let activeTab = 'state';
   function renderInspector() {
     if (!app.currentCircuit) {
       inspectorContentEl.textContent = 'No state yet.';
       return;
     }
-    if (activeTab === 'state') { renderState(); }
-    else { renderBloch(); }
+    if (activeTab === 'state') {
+      renderState();
+      if (renderHistogram) { renderHistogram(); }
+    } else {
+      renderBloch();
+    }
     app.draw();
   }
   tabStripEl.addEventListener('click', (ev) => {

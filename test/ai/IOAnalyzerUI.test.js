@@ -7,6 +7,7 @@
 import assert from 'node:assert';
 import { describe, it } from 'node:test';
 import { IOAnalyzerUI } from '../../src/ai/IOAnalyzerUI.js';
+import { Cache } from '../../src/ai/Cache.js';
 
 function makeStepTrace(changedSteps) {
   return {
@@ -371,5 +372,28 @@ describe('IOAnalyzerUI', () => {
     ui.analyze(bellInstructions, stepTrace);
     const finalKey = ui.cacheKey;
     assert.notEqual(stepKey, finalKey);
+  });
+
+  it('final boundary cache key changes before vs after simulation', () => {
+    const ui = new IOAnalyzerUI({ numQubits: 2 });
+    ui.setInputRows([0]); ui.setOutputRows([0, 1]);
+    const pre = { step: 0, getChangedSteps() { return []; }, scheduleLength: 2 };
+    const post = { step: 2, getChangedSteps() { return [1, 2]; }, scheduleLength: 2 };
+    ui.analyze(bellInstructions, pre); const preKey = ui.cacheKey;
+    ui.analyze(bellInstructions, post); const postKey = ui.cacheKey;
+    assert.notEqual(preKey, postKey, 'final boundary must key on actual state identity');
+    ui.analyze(bellInstructions, pre); assert.equal(ui.cacheHit, true, 're-sim pre-state is a cache hit');
+  });
+
+  it('clearCache preserves the injected Cache instance identity', () => {
+    const cache = new Cache();
+    const ui = new IOAnalyzerUI({ numQubits: 2, cache });
+    ui.setInputRows([0]); ui.setOutputRows([0, 1]);
+    const st = { step: 2, getChangedSteps() { return [1, 2]; }, scheduleLength: 2 };
+    ui.analyze(bellInstructions, st);
+    assert.equal(ui.cache, cache, 'injected cache instance retained');
+    ui.clearCache();
+    assert.equal(ui.cache, cache, 'clearCache preserves cache identity');
+    ui.analyze(bellInstructions, st); assert.equal(ui.cacheHit, false, 'cleared cache is a miss');
   });
 });

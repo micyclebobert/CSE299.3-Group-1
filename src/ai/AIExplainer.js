@@ -65,10 +65,14 @@ function buildPrompt(instructions, summaries, numQubits) {
 
   lines.push('');
   lines.push('Sparse state summaries (top-k basis states by probability at key columns):');
+  const seen = new Set();
   for (const instr of instructions) {
-    const summary = summaries[instr.virtualColumn];
+    const vc = instr.virtualColumn;
+    if (seen.has(vc)) continue;
+    seen.add(vc);
+    const summary = summaries[vc];
     if (!summary) continue;
-    lines.push(`  After virtual column ${instr.virtualColumn}:`);
+    lines.push(`  After virtual column ${vc}:`);
     for (const term of summary.topK.slice(0, 8)) {
       lines.push(
         `    ${term.label}: p=${term.probability.toFixed(4)} phase=${term.phase.toFixed(3)}rad`

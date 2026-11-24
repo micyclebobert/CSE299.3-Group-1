@@ -18,6 +18,24 @@ import { Circuit } from '../circuit/Circuit.js';
  * @returns {Circuit}
  */
 export function deutschJozsa(n, oracleGates) {
+  if (!Number.isInteger(n) || n < 1) {
+    throw new TypeError(
+      `deutschJozsa expects n to be a positive integer, got: ${typeof n}`
+    );
+  }
+  if (!Array.isArray(oracleGates)) {
+    throw new TypeError(
+      `deutschJozsa expects oracleGates to be an array, got: ${typeof oracleGates}`
+    );
+  }
+  for (const gate of oracleGates) {
+    if (!(gate instanceof Gate)) {
+      throw new TypeError(
+        `deutschJozsa expects every oracle gate to be a Gate, got: ${typeof gate}`
+      );
+    }
+  }
+
   const columns = [];
   // H on all input qubits, then X then H on the ancilla (sequential columns).
   const initGates = [];

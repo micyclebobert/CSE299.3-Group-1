@@ -1,0 +1,9 @@
+Title: P0-4 — Breakpoint semantics & controls
+
+Summary:
+- src/ui/debugger-view.js: Added a visible `<div class="bp-contract small">` element appended near the breakpoint controls that documents the breakpoint semantics contract (Step 0 = initial |0...0⟩; Step k = state after column k-1; breakpoint at step k halts before column k is applied). refreshTimeline() already sets timelineScrub.max = app.getTimelineMax() and value = current step; refreshBreakpoints() already shows "Step N" labels.
+- index.html: Added visible explanation line `<div class="small">Step k = state after column k-1; breakpoint at step k halts before column k.</div>` in the bottom panel near breakpoint controls. Element IDs (bp-column, btn-breakpoint, btn-run-to-bp, timeline-scrub, breakpoint-list) already match debugger-view.js references; script module reference unchanged.
+- src/debugger/debugger-breakpoints.js: Added step-aliased Debugger methods (addStepBreakpoint, removeStepBreakpoint, toggleStepBreakpoint, hasStepBreakpoint, getStepBreakpoints) mirroring the existing column-* methods, since virtual columns equal state steps.
+- src/ui/app-controller-debugger.js: Changed breakpoint status messages from "column" to "step" terminology ("Invalid breakpoint step ${col}.").
+- test/debugger/debugger-breakpoints.test.js: Added 3 tests — breakpoint at step k stops before column k is applied (verifies state after H but before CNOT), breakpoint at step 0 stops before any column, and step aliases mirror column methods.
+- Verification: node --input-type=module --check passes on all modified JS files; test:debugger 138/138 pass (incl. 3 new tests); test:ui debugger-view 5/5 pass; inspector-state-view 8/8 pass in isolation. Full npm test: 1035/1040 pass, 2 pre-existing unrelated failures (inspector ketLabels, pointerup conflict) that pass in isolation and are unrelated to breakpoints.

@@ -48,7 +48,7 @@ function buildApp() {
       lastPlace = { column: cell.column, row: cell.row, name: entry.name };
       return { conflict: false };
     },
-    _status(msg) {
+    setStatus(msg) {
       lastStatus = msg;
     },
     draw() {},
@@ -193,7 +193,7 @@ test('pointerup conflict shows status and does not draw', () => {
     placeGateFromCell() {
       return { conflict: true, reason: 'row occupied in column' };
     },
-    _status(msg) {
+    setStatus(msg) {
       app.lastStatus = msg;
     },
     draw() { drawCount += 1; },
@@ -204,6 +204,6 @@ test('pointerup conflict shows status and does not draw', () => {
   fire(canvas, 'pointerdown', 80, 20);
   fire(canvas, 'pointerup', 80, 20);
 
-  strictEqual(app.lastStatus, 'row occupied in column', 'conflict reason surfaced via _status');
+  strictEqual(app.lastStatus, 'row occupied in column', 'conflict reason surfaced via setStatus');
   strictEqual(drawCount, 0, 'draw should not be called on conflict');
 });

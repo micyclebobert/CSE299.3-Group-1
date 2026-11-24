@@ -128,7 +128,7 @@ test('browser-app imports and wires DOM without throwing', async () => {
   await import('../../src/ui/browser-app.js');
   const expected = [
     'circuit', 'gate-palette', 'inspector-content', 'code-view', 'status',
-    'tab-strip', 'shot-hist', 'step-current', 'step-total', 'breakpoint-list',
+    'tab-strip', 'step-current', 'step-total', 'breakpoint-list',
     'ai-output', 'ai-prompt', 'builder-output', 'io-input-row', 'io-output-row',
     'io-output', 'shots-input', 'btn-simulate', 'btn-reset', 'btn-undo',
     'btn-redo', 'btn-copy', 'btn-import', 'btn-export', 'btn-share',

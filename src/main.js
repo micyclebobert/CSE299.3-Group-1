@@ -84,23 +84,49 @@ const interaction = new Interaction();
 const catalog = gateCatalog();
 
 // ---------------------------------------------------------------------------
-// Discardable feature leaves are imported here only.
-// Deleting any leaf folder requires at most a 2-line diff in this file.
+// Discardable feature leaves are loaded dynamically with try/catch so a
+// deleted leaf folder degrades to undefined names instead of a link-time
+// crash. Deleting any leaf folder requires at most a 2-line diff in this
+// file. The playback and breakpoint modules self-register onto
+// Debugger.prototype via Object.assign, so they load alongside Debugger.
 // ---------------------------------------------------------------------------
 
-// debugger/ (2 lines)
-import { DebuggerUI } from './debugger/DebuggerUI.js';
-import { Debugger } from './debugger/Debugger.js';
+async function loadLeaf(path) {
+  try {
+    return await import(path);
+  } catch {
+    return {};
+  }
+}
 
-// inspector/ (2 lines)
-import { Inspector } from './inspector/Inspector.js';
-import { InspectorUI } from './inspector/InspectorUI.js';
+const dbgMod = await loadLeaf('./debugger/Debugger.js');
+const { Debugger } = dbgMod;
 
-// ai/ (1 line via registry.js)
-import { AIExplainer, IOAnalyzer, AIBuilder, SparseSummary, AIBuilderUI, IOAnalyzerUI, Cache } from './ai/registry.js';
+const dbgUIMod = await loadLeaf('./debugger/DebuggerUI.js');
+const { DebuggerUI } = dbgUIMod;
+
+await loadLeaf('./debugger/debugger-playback.js');
+await loadLeaf('./debugger/debugger-breakpoints.js');
+
+const inspMod = await loadLeaf('./inspector/Inspector.js');
+const { Inspector } = inspMod;
+
+const inspUIMod = await loadLeaf('./inspector/InspectorUI.js');
+const { InspectorUI } = inspUIMod;
+
+const aiMod = await loadLeaf('./ai/registry.js');
+const { registry } = aiMod;
+
+const AIExplainer = await registry.get('AIExplainer');
+const IOAnalyzer = await registry.get('IOAnalyzer');
+const AIBuilder = await registry.get('AIBuilder');
+const SparseSummary = await registry.get('SparseSummary');
+const AIBuilderUI = await registry.get('AIBuilderUI');
+const IOAnalyzerUI = await registry.get('IOAnalyzerUI');
+const Cache = await registry.get('Cache');
 
 let cache = null;
-if (typeof Cache !== 'undefined') {
+if (Cache) {
   cache = new Cache();
 }
 
@@ -126,4 +152,4 @@ export { snapCell } from './editor/Interaction.js';
 // ---------------------------------------------------------------------------
 
 export { DebuggerUI, Debugger, InspectorUI, Inspector };
-export { AIExplainer, IOAnalyzer, AIBuilder, AIBuilderUI, IOAnalyzerUI, Cache, SparseSummary } from './ai/registry.js';
+export { AIExplainer, IOAnalyzer, AIBuilder, AIBuilderUI, IOAnalyzerUI, Cache, SparseSummary };

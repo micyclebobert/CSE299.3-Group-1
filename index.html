@@ -115,6 +115,7 @@
           <input id="bp-column" type="number" value="0" min="0" style="width:50px">
           <input id="timeline-scrub" type="range" min="0" max="0" style="width:150px">
           <div id="breakpoint-list" class="breakpoint-list"></div>
+          <div class="small">Step k = state after column k-1; breakpoint at step k halts before column k.</div>
         </div>
       </div>
       <div class="tab-strip" id="tab-strip">
@@ -123,7 +124,6 @@
       </div>
       <div id="inspector-content" class="muted">No state yet.</div>
       <div class="field"><span class="toolbar-label">Shots:</span><input id="shots-input" type="number" value="1024" min="1"><button id="btn-sample">Sample</button></div>
-      <div id="shot-hist" class="muted"></div>
       <div id="status" class="status"></div>
     </aside>
   </div>

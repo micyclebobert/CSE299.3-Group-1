@@ -21,6 +21,7 @@ import { fromJson } from '../src/circuit/Serializer.js';
 import { flattenCircuit } from '../src/circuit/Flatten.js';
 import { scheduleColumns } from '../src/circuit/Flatten.js';
 import { evaluate } from '../src/sim/Evaluator.js';
+import { HARD_CLI_CAP } from '../src/sim/limits.js';
 
 // Seed the GateRegistry (main.js is the sole importer of gates/).
 import '../src/main.js';
@@ -64,9 +65,15 @@ async function main() {
   let state;
   try {
     const circuit = fromJson(input);
+    const n = circuit.numQubits;
+    if (!Number.isInteger(n) || n < 1 || n > HARD_CLI_CAP) {
+      process.stderr.write(`cli: qubit count ${String(n)} exceeds hard cap ${HARD_CLI_CAP}. Refusing to allocate state. No stdout produced.\n`);
+      process.exit(1);
+      return;
+    }
     const instructions = flattenCircuit(circuit);
     const schedule = scheduleColumns(instructions);
-    state = evaluate(schedule, circuit.numQubits);
+    state = evaluate(schedule, n);
   } catch (err) {
     process.stderr.write(`cli: ${err.stack || err.message}\n`);
     process.exit(1);

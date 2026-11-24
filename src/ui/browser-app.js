@@ -35,7 +35,6 @@ const app = new AppController({
 
 const inspectorEl = document.getElementById('inspector-content');
 const tabStripEl = document.getElementById('tab-strip');
-const shotHistEl = document.getElementById('shot-hist');
 
 let renderInspector = () => {};
 let updateDebugStep = () => {};
@@ -44,10 +43,11 @@ let histogramView = null;
 if (inspectorEl && tabStripEl) {
   const stateView = initInspectorStateView(app, inspectorEl);
   const blochView = initInspectorBlochView(app, inspectorEl);
-  histogramView = initInspectorHistogramView(app, shotHistEl);
+  histogramView = initInspectorHistogramView(app, inspectorEl);
   const tabsView = initInspectorTabsView(app, tabStripEl, inspectorEl, {
     renderState: stateView.renderState,
     renderBloch: blochView.renderBloch,
+    renderHistogram: histogramView.renderShots,
   });
   renderInspector = tabsView.renderInspector;
 }
@@ -73,7 +73,7 @@ if (codeEl) {
 }
 
 const aiOutput = document.getElementById('ai-output');
-if (AIExplainer && aiOutput) {
+if (AIExplainer && SparseSummary && aiOutput) {
   initAIExplainerView(app, aiOutput, AIExplainer, SparseSummary, cache);
 }
 
@@ -115,7 +115,14 @@ if (btnRedo) {
 
 const shotsInput = document.getElementById('shots-input');
 if (shotsInput) {
-  shotsInput.addEventListener('change', (ev) => { app.setShots(ev.target.value); });
+  shotsInput.addEventListener('change', (ev) => {
+    const shots = Number(ev.target.value);
+    if (!Number.isFinite(shots) || shots < 1) {
+      app.setStatus(`Invalid shots value "${ev.target.value}". Keeping ${app.shots}.`);
+      return;
+    }
+    app.setShots(Math.floor(shots));
+  });
 }
 const btnSample = document.getElementById('btn-sample');
 if (btnSample) {

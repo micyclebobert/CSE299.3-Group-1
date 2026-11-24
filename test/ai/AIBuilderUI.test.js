@@ -9,6 +9,7 @@
 import assert from 'node:assert';
 import { describe, it } from 'node:test';
 import { AIBuilderUI } from '../../src/ai/AIBuilderUI.js';
+import { Cache } from '../../src/ai/Cache.js';
 
 function mockFetch(responseOrError) {
   let callCount = 0;
@@ -189,6 +190,17 @@ describe('AIBuilderUI', () => {
     await ui.build();
     assert.equal(fetchMock.callCount(), 2);
     assert.equal(ui.cacheHit, false);
+  });
+  it("clearCache preserves the injected Cache instance identity", () => {
+    const cache = new Cache();
+    const ui = new AIBuilderUI({ numQubits: 2, cache });
+    assert.equal(ui.cache, cache, "injected cache instance retained");
+    ui.clearCache();
+    assert.equal(ui.cache, cache, "clearCache preserves cache identity");
+    cache.set("k1", "v1");
+    ui.clearCache();
+    assert.equal(cache.has("k1"), false, "entries removed after clear");
+    assert.equal(ui.cache, cache, "identity still preserved after second clear");
   });
 
   it('reset clears all state', async () => {

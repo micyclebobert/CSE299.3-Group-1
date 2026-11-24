@@ -72,6 +72,15 @@ export function initDebuggerView(app, stepCurrent, stepTotal, breakpointListEl) 
     if (bottom) bottom.appendChild(breakpointList);
   }
 
+  // Visible breakpoint-semantics contract (see index.html for the mirror line).
+  const bpContract = document.createElement('div');
+  bpContract.className = 'bp-contract small';
+  bpContract.textContent = 'Step 0 = initial |0...0\u2022 state (no columns applied yet). Step k (1 \u2264 k \u2264 scheduleLength) = state after column k-1 has been applied. A breakpoint at "step k" halts at state step k \u2014 the state BEFORE column k is applied.';
+  const bpParent = breakpointList.parentElement ?? document.getElementById('panel-bottom');
+  if (bpParent && typeof bpParent.insertBefore === 'function') {
+    bpParent.insertBefore(bpContract, breakpointList);
+  }
+
   refreshTimeline();
   refreshBreakpoints();
 

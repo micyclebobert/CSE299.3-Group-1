@@ -11,11 +11,48 @@ test('inspector-tabs-view exports initInspectorTabsView', () => {
   ok(/^export function initInspectorTabsView\(/m.test(source()), 'must export initInspectorTabsView');
 });
 
-test('defaults activeTab to state and dispatches renderState or renderBloch', () => {
+test('accepts renderHistogram and draws it under the State tab', () => {
   const src = source();
-  ok(/let activeTab = 'state';/.test(src), 'default activeTab is state');
-  ok(/if \(activeTab === 'state'\) \{ renderState\(\); \}/.test(src), 'state branch calls renderState');
-  ok(/else \{ renderBloch\(\); \}/.test(src), 'non-state branch calls renderBloch');
+  ok(/renderHistogram/.test(src), 'must accept and wire renderHistogram callback');
+  let stateCalls = 0;
+  let blochCalls = 0;
+  let histogramCalls = 0;
+  const app = { currentCircuit: {}, onInspector() {}, draw() {} };
+  const tabStripEl = { addEventListener() {}, querySelectorAll() { return []; } };
+  const inspectorContentEl = { textContent: '' };
+  const view = initInspectorTabsView(app, tabStripEl, inspectorContentEl, {
+    renderState() { stateCalls += 1; },
+    renderBloch() { blochCalls += 1; },
+    renderHistogram() { histogramCalls += 1; },
+  });
+  view.renderInspector();
+  strictEqual(stateCalls, 1, 'state tab renders state');
+  strictEqual(histogramCalls, 1, 'state tab renders histogram');
+  strictEqual(blochCalls, 0, 'state tab does not render bloch');
+});
+
+test('non-state tabs render Bloch, not histogram', () => {
+  let histogramCalls = 0;
+  const app = { currentCircuit: {}, onInspector() {}, draw() {} };
+  const tabStripEl = { addEventListener() {}, querySelectorAll() { return []; } };
+  const inspectorContentEl = { textContent: '' };
+  const view = initInspectorTabsView(app, tabStripEl, inspectorContentEl, {
+    renderState() {}, renderBloch() {}, renderHistogram() { histogramCalls += 1; },
+  });
+  view.setActiveTab('bloch');
+  view.renderInspector();
+  strictEqual(view.getActiveTab(), 'bloch');
+  strictEqual(histogramCalls, 0, 'histogram not rendered under non-state tab');
+});
+
+test('default active tab is state', () => {
+  const app = { currentCircuit: {}, onInspector() {}, draw() {} };
+  const tabStripEl = { addEventListener() {}, querySelectorAll() { return []; } };
+  const inspectorContentEl = { textContent: '' };
+  const view = initInspectorTabsView(app, tabStripEl, inspectorContentEl, {
+    renderState() {}, renderBloch() {}, renderHistogram() {},
+  });
+  strictEqual(view.getActiveTab(), 'state', 'default active tab is state');
 });
 
 test('wires tab strip click and app.onInspector', () => {
@@ -25,21 +62,21 @@ test('wires tab strip click and app.onInspector', () => {
   ok(/app\.onInspector\(\(\) => \{ renderInspector\(\); \}\)/.test(src), 'registers app.onInspector');
 });
 
-test('returns renderInspector, getActiveTab and setActiveTab', () => {
-  const src = source();
-  ok(/return \{ renderInspector, getActiveTab/.test(src), 'returns renderInspector and getActiveTab');
-  ok(/setActiveTab: \(v\) => \{ activeTab = v; \}/.test(src), 'returns setActiveTab');
-});
-
 test('renderInspector shows No state when no circuit', () => {
   const app = { currentCircuit: null, onInspector() {}, draw() {} };
   const tabStripEl = { addEventListener() {}, querySelectorAll() { return []; } };
   const inspectorContentEl = { textContent: '' };
   const view = initInspectorTabsView(app, tabStripEl, inspectorContentEl, {
-    renderState() {}, renderBloch() {},
+    renderState() {}, renderBloch() {}, renderHistogram() {},
   });
   view.renderInspector();
   strictEqual(inspectorContentEl.textContent, 'No state yet.');
   ok(typeof view.getActiveTab === 'function', 'exposes getActiveTab');
   ok(typeof view.setActiveTab === 'function', 'exposes setActiveTab');
+});
+
+test('returns renderInspector, getActiveTab and setActiveTab', () => {
+  const src = source();
+  ok(/return \{ renderInspector, getActiveTab/.test(src), 'returns renderInspector and getActiveTab');
+  ok(/setActiveTab: \(v\) => \{ activeTab = v; \}/.test(src), 'returns setActiveTab');
 });

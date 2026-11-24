@@ -17,7 +17,7 @@ export function initPlacementView(app, canvas, interaction, { onPlace = () => {}
     if (entry) {
       const result = app.placeGateFromCell(cell, entry, { onPlace });
       if (result.conflict) {
-        app._status(result.reason);
+        app.setStatus(result.reason);
       }
     }
     interaction.cancel();

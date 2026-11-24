@@ -99,6 +99,10 @@ export class AIBuilderUI {
   get cacheKey() {
     return this.#cacheKey;
   }
+ 
+  get cache() {
+    return this.#cache;
+  }
 
   getStateSnapshot() {
     return {
@@ -215,7 +219,7 @@ export class AIBuilderUI {
   }
 
   clearCache() {
-    this.#cache = new Cache();
+    this.#cache.clear();
   }
 
   reset() {

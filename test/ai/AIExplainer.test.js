@@ -190,4 +190,26 @@ describe('AIExplainer', () => {
     assert.ok(prompt.indexOf('|00>') > col0Header, '|00> after column 0 header');
     assert.ok(prompt.indexOf('|01>') > col2Header, '|01> after column 2 header');
   });
+
+  it('buildPrompt emits one section per unique virtual column', async () => {
+    const fetchMock = mockFetchCapturingPrompt();
+    const instrs = [
+      { gateId: 'H', target: 0, controls: [], column: 0, virtualColumn: 0 },
+      { gateId: 'H', target: 1, controls: [], column: 1, virtualColumn: 0 },
+      { gateId: 'H', target: 0, controls: [], column: 2, virtualColumn: 2 },
+    ];
+    const summaries = [
+      { topK: [{ label: '|00>', probability: 1, phase: 0 }], marginals: [] },
+      undefined, // no summary at virtual column 1
+      { topK: [{ label: '|01>', probability: 1, phase: 0 }], marginals: [] },
+    ];
+    const explainer = new AIExplainer();
+    await explainer.explain(instrs, summaries, 2);
+    const prompt = fetchMock.prompt();
+    assert.strictEqual(prompt.split('After virtual column 0:').length - 1, 1, 'one section for virtual column 0');
+    assert.strictEqual(prompt.split('After virtual column 2:').length - 1, 1, 'one section for virtual column 2');
+    assert.strictEqual(prompt.indexOf('After virtual column 1:'), -1, 'no section for missing virtual column 1');
+    assert.ok(prompt.indexOf('|00>') > prompt.indexOf('After virtual column 0:'), '|00> after column 0 header');
+    assert.ok(prompt.indexOf('|01>') > prompt.indexOf('After virtual column 2:'), '|01> after column 2 header');
+  });
 });
